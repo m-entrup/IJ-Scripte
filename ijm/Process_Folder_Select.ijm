@@ -1,3 +1,12 @@
+/*
+ * file:	Process_Folder_Select.ijm
+ * author:	Michael Entrup b. Epping (michael.entrup@wwu.de)
+ * version:	20151117
+ * info:	Dies ist eine Vorlage, um bestimmte Dateien in einem Ordner zu verarbeiten.
+ * 			Die Dateien kann der Benutzer in einem Dialog auswählen.
+ * 			Dieses Macro gibt nur die selektierten Dateien aus.
+ */
+
 input = getDirectory("Input directory");
 
 var array;

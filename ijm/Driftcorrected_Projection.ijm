@@ -1,3 +1,13 @@
+/*
+ * file:	Driftcorrected_Projection.ijm
+ * author:	Michael Entrup b. Epping (michael.entrup@wwu.de)
+ * version:	20151117
+ * info:	Das Macro läd eine Bildserie und führt eine Driftkorrektur durch.
+ * 			Zur Driftkorrektur wird Linear Stack Alignment with SIFT verwendet.
+ * 			Anschließend wird eine Projektion mit der gewählten Metode ausgeführt.
+ */
+
+
 main();
 
 
@@ -27,6 +37,7 @@ function main() {
 	rename("[" + projectionMethod + "] " + title);
 	setBatchMode("exit and display");
 }
+
 
 function getParameters() {
 	Dialog.create("Parameters for driftcrrected Projection");
