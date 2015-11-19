@@ -3,7 +3,13 @@
  * @Double(label="focal length in mm",value=1.72) fl_mm
  * @Double(label="spherical aberration in mm",value=1.2) C_s_mm
  * 
- * [1] Jürgen Thomas and Thomas Gemming, Analytische Transmissionselektronenmikroskopie, Springer 2013
+ * file:	TEMj_ObjectiveAperatureChart.js
+ * author:	Michael Entrup b. Epping (michael.entrup@wwu.de)
+ * version:	20151119
+ * info:	Das Script rechnet das theoretische Auflösungsvermögen eines TEM aus.
+ * 			Das Auflösungsvermögen wird grafisch in Abhängigkeit vom Durchmesser der Objektivblende dargestellt.
+ * 			
+ * 			[1] Jürgen Thomas und Thomas Gemming, Analytische Transmissionselektronenmikroskopie, Springer 2013
  */
 
 importClass(Packages.ij.ImagePlus);
@@ -141,7 +147,7 @@ function deltaDiffraction(x) {
 }
 
 function deltaResulting(x) {
-	// [1] Gl. 2..17
+	// [1] Gl. 2.17
 	var val = Math.sqrt(Math.pow(deltaSpherical(x), 2) + Math.pow(deltaDiffraction(x), 2));
 	return val;
 }

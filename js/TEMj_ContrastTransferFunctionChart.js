@@ -3,8 +3,14 @@
  * @Double(label="spherical aberration in mm",value=1.2) C_s_mm
  * @Double(label="chromatic aberration in mm",value=1.2) C_c_mm
  * @Double(label="energy spread in eV",value=0.7) dU
- * 
- * [1] Jürgen Thomas and Thomas Gemming, Analytische Transmissionselektronenmikroskopie, Springer 2013
+ *  
+ * file:	TEMj_ContrastTransferFunctionChart.js
+ * author:	Michael Entrup b. Epping (michael.entrup@wwu.de)
+ * version:	20151119
+ * info:	Das Script rechnet die Kontrasttransferfunktion aus.
+ * 			Es werden Kurven für Fokus und für den optimalen Defokus ausgegeben.
+ * 			
+ * 			[1] Jürgen Thomas und Thomas Gemming, Analytische Transmissionselektronenmikroskopie, Springer 2013
  */
 
 importClass(Packages.ij.ImagePlus);
@@ -104,7 +110,12 @@ function createChart() {
 function createDataset() {
 	var dataset = new XYSeriesCollection();
 
-	var ctf_opt = new XYSeries("CTF @ " + (df_opt * 1e9).toFixed(1) + " nm defocus");
+	/*
+	 * In Java 8 benötigt der Konstruktor XYSeries() einen String.
+	 * Diesen muss man explizit per Cast erzeugen.
+	 */
+	var opt_str = (String) ("CTF @ " + (df_opt * 1e9).toFixed(1) + " nm defocus");
+	var ctf_opt = new XYSeries(opt_str);
 	var ctf_0 = new XYSeries("CTF @ 0 nm defocus");
 	var start = 0;
 	var stop = 10;
