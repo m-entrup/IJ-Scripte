@@ -32,17 +32,17 @@ done
 #
 # [1] http://blog.mudflatsoftware.com/blog/2012/10/31/tricks-with-rsync-filter-rules/
 echo -e "\nSynchronisiere Java-Plugins..."
-rsync -avz --include "*.jar" --include "*.class" --filter "-! */" --prune-empty-dirs $WD/java/ $PLUGINS/
-rsync -avz --include "*.jar" --include "*.class" --filter "-! */" --prune-empty-dirs $PLUGINS/ $WD/java/
+rsync -avzh --include "*.jar" --include "*.class" --filter "-! */" --prune-empty-dirs $WD/java/ $PLUGINS/
+rsync -avzh --include "*.jar" --include "*.class" --filter "-! */" --prune-empty-dirs $PLUGINS/ $WD/java/
 
 echo -e "\nSynchronisiere IJ-Macros..."
-rsync -avz  --include "*.ijm" --filter "-! */" --prune-empty-dirs $WD/ijm/ $MACROS/
-rsync -avz  --include "*.ijm" --filter "-! */" --prune-empty-dirs $MACROS/ $WD/ijm/
+rsync -avzh  --include "*.ijm" --filter "-! */" --prune-empty-dirs $WD/ijm/ $MACROS/
+rsync -avzh  --include "*.ijm" --filter "-! */" --prune-empty-dirs $MACROS/ $WD/ijm/
 
 echo -e "\nSynchronisiere JavaScript..."
-rsync -avz  --include "*.js" --filter "-! */" --prune-empty-dirs $WD/js/ $MACROS/
-rsync -avz  --include "*.js" --filter "-! */" --prune-empty-dirs $MACROS/ $WD/js/
+rsync -avzh  --include "*.js" --filter "-! */" --prune-empty-dirs $WD/js/ $MACROS/
+rsync -avzh  --include "*.js" --filter "-! */" --prune-empty-dirs $MACROS/ $WD/js/
 
 echo -e "\nSynchronisiere Jython..."
-rsync -avz --include "*.py" --filter "-! */" --prune-empty-dirs $WD/Jython/ $MACROS/
-rsync -avz --include "*.py" --filter "-! */" --prune-empty-dirs $MACROS/ $WD/Jython/
+rsync -avzh --include "*.py" --filter "-! */" --prune-empty-dirs $WD/Jython/ $MACROS/
+rsync -avzh --include "*.py" --filter "-! */" --prune-empty-dirs $MACROS/ $WD/Jython/
