@@ -5,7 +5,7 @@ var Imports = new JavaImporter(
     Packages.ij.plugin.Duplicator,
     Packages.ij.measure.CurveFitter);
 
-	
+
 function PixelObject(x, y, valsX, valsY) {
 	this.x = x;
 	this.y = y;
@@ -13,13 +13,14 @@ function PixelObject(x, y, valsX, valsY) {
 	this.valsY = valsY;
 }
 
-function stackToArray(imp) {		
+function stackToArray(imp) {
 	with (new JavaImporter(Packages.ij.IJ, Packages.ij.ImagePlus)) {
 		var x, y, z, array, elosses, stack, label, pattern, offset, valsY;
 		array = [];
 		elosses = [];
 		stack = imp.getImageStack();
 		pattern = /(\d+(\.\d+)?)eV/i;
+		// We guess that the stack is sorted by energy loss and that the ZLP is at the centre of the stack.
 		offset = parseFloat(pattern.exec(stack.getShortSliceLabel(Math.floor(imp.getStackSize() / 2) + 1)));
 		offset = IJ.getNumber("Enter energy loss offset: ", offset);
 		if (offset == IJ.CANCELED) {
@@ -29,8 +30,12 @@ function stackToArray(imp) {
 			label = stack.getShortSliceLabel(z+1);
 			elosses.push(parseFloat(pattern.exec(label)) - offset);
 		}
+		/*
+		 * Create an object for each pixel of the stacks projection:
+		 * Each object represents an EEL spectrum of the ZLP.
+		 */
 		for (y = 0; y < imp.getHeight(); y++) {
-			for (x = 0; x < imp.getWidth(); x++) {			
+			for (x = 0; x < imp.getWidth(); x++) {
 				valsY = [];
 				for (z = 0; z < imp.getStackSize(); z++) {
 					valsY.push(stack.getVoxel(x, y, z));
@@ -38,10 +43,26 @@ function stackToArray(imp) {
 				array.push(new PixelObject(x, y, elosses, valsY));
 			}
 		}
+		array.width = imp.getWidth();
+		array.height = imp.getHeight();
 		return array;
 	}
 }
-	
+
+function export2JSON(array) {
+	with (new JavaImporter(Packages.ij.text.TextWindow)) {
+		var obj2Export = {
+			'width': array.width,
+			'height': array.height,
+			'zProfiles': array,
+			'date': new Date()
+		};
+		strExport = JSON.stringify(obj2Export, null, ' ');
+		textWindow = new TextWindow("JSON export", strExport, 800,600);
+		textWindow.show();
+	}
+}
+
 function fitGauss(obj) {
 	with (Imports) {
 		var fit = new CurveFitter(obj.valsX, obj.valsY);
@@ -49,11 +70,11 @@ function fitGauss(obj) {
 		obj.offset = fit.getParams()[2];
 	}
 }
-	
-function createResultingImp(array, width, height) {
+
+function createResultingImp(array) {
 	with (new JavaImporter(Packages.ij.process.FloatProcessor, Packages.ij.ImagePlus)) {
 		var fp, imp;
-		fp = new FloatProcessor(width, height);
+		fp = new FloatProcessor(array.width, array.height);
 		array.forEach(function(obj) {
 			fp.setf(obj.x, obj.y, obj.offset);
 		});
@@ -61,10 +82,10 @@ function createResultingImp(array, width, height) {
 		return imp;
 	}
 }
-	
-function main() {	
-	with (Imports) {	
-		var inputImp, binnedImp, bin, zProfiles;
+
+function main() {
+	with (Imports) {
+		var inputImp, binnedImp, bin, zProfiles, zProfilesExport, textWindow;
 		inputImp = IJ.getImage();
 		if (inputImp.getStackSize() <= 1) {
 			IJ.showMessage("Error", "There must be at least a stack open.");
@@ -81,8 +102,11 @@ function main() {
 		if (zProfiles == IJ.CANCELED) {
 			return;
 		}
+		if (inputImp.getStackSize() * inputImp.getWidth() * inputImp.getHeight() < Math.pow(2, 24) * bin) {
+			export2JSON(zProfiles);
+		}
 		zProfiles.forEach(fitGauss);
-		createResultingImp(zProfiles, binnedImp.getWidth(), binnedImp.getHeight()).show();
+		createResultingImp(zProfiles).show();
 	}
 }
 
