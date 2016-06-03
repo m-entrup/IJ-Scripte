@@ -3,7 +3,7 @@ setBatchMode(true);
 fileList = getFileList(dir);
 
 function getExp(label) {
-	code = "var Ausdruck = /B\\d_(\\d+(\\.\\d+)?)\\.dm3/;\n";
+	code = "var Ausdruck = /Bin\\d_(\\d+(\\.\\d+)?)s/;\n";
 	code += "Ausdruck.exec('" + label + "');\n";
 	code += "RegExp.$1;";
 	return eval("script", code);
