@@ -34,7 +34,7 @@ function calcNormalisedCrossCorrelation() {
 	run("Stack to Images");
 	id1 = getImageID();
 	/*
-	 * Es ist notwendig die Bilder neu zu genennen, da Leerzeichen im Titel Probleme verursachen.
+	 * Es ist notwendig die Bilder neu zu benennen, da Leerzeichen im Titel Probleme verursachen.
 	 * Denn getTitle() enthält nur den String bis zum ersten Leerzeichen.
 	 */
 	rename("img1");
@@ -43,7 +43,7 @@ function calcNormalisedCrossCorrelation() {
 	id2 = getImageID();
 	rename("img2");
 	img2 = getTitle();
-	run("Main Window [enter]");
+	//run("Main Window [enter]");
 	setBatchMode(true);
 	run("FD Math...", "image1=" + img1 + " operation=Correlate image2=" + img2 + " result=Result do");
 	idResult = getImageID();
