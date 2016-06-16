@@ -1,0 +1,42 @@
+"""
+file:		Calculate_Jump-ratio.py
+author:		Michael Entrup b. Epping (michael.entrup@wwu.de)
+version:	20160616
+info:		A script that calculates the Jump-Ratio of two images.
+			The second image is devided by the first one.
+			A drift correction is performed. The first image is shiftet towards to the second one.
+"""
+
+from sys import modules, path
+# When using own modules it is necessary to use 'sys.modules.clear()'.
+# https://groups.google.com/forum/#!msg/fiji-devel/2YshfLDHiIY/MR0LoRJ6tm4J
+# https://stackoverflow.com/questions/10531920/jython-import-or-reload-dynamically
+modules.clear()
+from java.lang.System import getProperty
+path.append(getProperty('fiji.dir') + '/plugins/Scripts/Plugins/EFTEMj/')
+import CorrectDrift as drift
+import HelperDialogs as dialogs
+
+from ij import IJ, ImagePlus, WindowManager
+from ij.plugin import ImageCalculator
+from ij.process import ImageStatistics as Stats
+
+img1, img2 = dialogs.get_images(dialogs.create_selection_dialog(dialogs.get_image_titles(), range(2)))
+img2, img1 = drift.correct_drift(img2, img1, False)
+img_ratio = ImageCalculator().run("Divide create", img2, img1)
+img_ratio.setTitle('Jump-ratio [%s divided by %s]' % (img2.getShortTitle(), img1.getShortTitle()))
+img_ratio.changes = True
+img_ratio.show()
+IJ.run(img_ratio, "Enhance Contrast", "saturated=0.35")
+# We want to optimise the lower displaylimit:
+min = img_ratio.getProcessor().getMin()
+max = img_ratio.getProcessor().getMax()
+stat = img_ratio.getStatistics(Stats.MEAN + Stats.STD_DEV)
+mean = stat.mean
+stdv = stat.stdDev
+if min < mean - stdv:
+	if mean - stdv >= 0:
+		img_ratio.getProcessor().setMinAndMax(mean - stdv, max)
+	else:
+		img_ratio.getProcessor().setMinAndMax(0, max)
+	img_ratio.updateAndDraw()

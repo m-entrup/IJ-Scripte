@@ -1,33 +1,20 @@
+﻿# coding=utf-8
 """
-file:		Kreuzkorrelation.py
+file:		CrossCorrelation.py
 author:		Michael Entrup b. Epping (michael.entrup@wwu.de)
-version:	20160614
-info:		Dieses Script berechnet die normierte Kreuzkorrelation von 2 Bildern.
-			Die Normierung wird nach der Berechnung der Kreuzkorrelation durchgeführt.
-			Das Ergebnis ist ein Bild, welches ScaleBar und CalibrationBar enthält.
+version:	20160616
+info:		This module calculates the normalised Cross-correlation of two images.
+			There are aditional functions to style the result or find the position of the maximum.
 """
-from __future__ import division
+
+from __future__ import with_statement, division
 import math
 from ij import IJ, WindowManager, ImagePlus
 from ij.measure import Calibration as Cal
 from ij.process import ImageStatistics as Stats
-from ij.gui import GenericDialog, Line
-from ij.plugin import FFTMath, Duplicator
+from ij.gui import Line, PointRoi
+from ij.plugin import FFTMath
 from java.lang import Integer
-
-"""
-Show a dialog to select the images to process.
-The length of the list defaults defines the number of selectable images.
-"""
-def create_selection_dialog(image_titles, defaults):
-	gd = GenericDialog("Select images for correlation");
-	for index, default in enumerate(defaults):
-		gd.addChoice("Image_"+ str(index + 1), image_titles, image_titles[default])
-	gd.showDialog()
-	if gd.wasCanceled():
-		return [0 for _ in defaults]
-	return [gd.getNextChoiceIndex() for _ in defaults]
-
 
 def perform_correlation(img1, img2):
 	norm = 1
@@ -74,6 +61,15 @@ def style_cc(cc_img):
 	createScaleBar(cc_img)
 	createCalBar(cc_img)
 
+def get_max(cc_img):
+	width = cc_img.getWidth()
+	IJ.run(cc_img, "Find Maxima...", "noise=" + str(width / 4) + " output=[Point Selection]")
+	roi = cc_img.getRoi()
+	if roi.getClass() == PointRoi:
+		return roi.getBounds().x, roi.getBounds().y
+	else:
+		return None, None
+
 
 def createScaleBar(imp):
 	width = imp.getWidth()
@@ -97,34 +93,3 @@ def createCalBar(imp):
 	fontSize = 10;
 	zoom = imp.getWidth() / 4096 * 10;
 	IJ.run(imp, "Calibration Bar...", "location=[Upper Right] fill=White label=Black number=3 decimal=2 font=%d zoom=%d overlay" % (fontSize, zoom));
-
-
-if WindowManager.getImageCount() > 0:
-	imp = WindowManager.getCurrentImage()
-	if imp.getImageStackSize() == 2:
-		dup = Duplicator()
-		img1 = dup.run(imp, 1, 1)
-		img1.setTitle("Slice1")
-		img2 = dup.run(imp, 2, 2)
-		img2.setTitle("Slice2")
-		result = perform_correlation(img1, img2)
-		style_cc(result)
-		[img.close() for img in (img1, img2)]
-	elif WindowManager.getImageCount() == 2:
-		img1, img2 = [WindowManager.getImage(id) for id in WindowManager.getIDList()]
-		result = perform_correlation(img1, img2)
-		style_cc(result)
-	elif WindowManager.getImageCount() > 2:
-		image_ids = WindowManager.getIDList()
-		image_titles = [WindowManager.getImage(id).getTitle() for id in image_ids]
-		sel1, sel2 = create_selection_dialog(image_titles, range(2))
-		#print(sel1, sel2)
-		#print(image_titles[sel1], image_titles[sel2])
-		img1 = WindowManager.getImage(image_ids[sel1])
-		img2 = WindowManager.getImage(image_ids[sel2])
-		result = perform_correlation(img1, img2)
-		style_cc(result)
-	else:
-		IJ.error("You need two images to run the script.")
-else:
-	IJ.error("You need two images to run the script.")
