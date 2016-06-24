@@ -79,8 +79,8 @@ def style_cc(cc_img):
 	IJ.run(cc_img, "Find Maxima...", "noise=" + str(width / 4) + " output=[Point Selection]")
 	IJ.run(cc_img, "Add Selection...", "");
 	IJ.run(cc_img, "Select None", "");
-	createScaleBar(cc_img)
-	createCalBar(cc_img)
+	__create_scalebar(cc_img)
+	__create_calbar(cc_img)
 	if not cc_img.isVisible():
 		cc_img.show()
 
@@ -99,7 +99,7 @@ def get_max(cc_img):
 		return (None, None)
 
 
-def createScaleBar(imp):
+def __create_scalebar(imp):
 	"""
 	Creates a scale bar and adds it to an ImagePlus. Nothing is returned.
 	:param imp: The imagePlus the scale bar is added to.
@@ -121,7 +121,7 @@ def createScaleBar(imp):
 	IJ.run(imp, "Scale Bar...", "width=%d height=%d font=%d color=%s background=None location=[Lower Right] bold overlay" % (barWidth, barHeight, fontSize, scaleBarColor))
 
 
-def createCalBar(imp):
+def __create_calbar(imp):
 	"""
 	Creates a calibration bar and adds it to an ImagePlus. Nothing is returned.
 	:param imp: The imagePlus the calibration bar is added to.
