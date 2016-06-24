@@ -30,13 +30,19 @@ def perform_correlation(img1, img2):
 		stat = copy.getStatistics(Stats.MEAN)
 		norm *= math.sqrt(stat.umean) * math.sqrt(img.getWidth()) * math.sqrt(img.getHeight())
 	# Include image names in square brackets to handle file names with spaces.
-	IJ.run(img1, "FD Math...", "image1=[" + img1.getTitle() + "] operation=Correlate image2=[" + img2.getTitle() + "] result=Result do");
+	suffix = 1
+	prefix = 'Result'
+	title = prefix
+	while WindowManager.getImage(title):
+		title = prefix + '-' + str(suffix)
+		suffix += 1
+	IJ.run(img1, "FD Math...", "image1=[" + img1.getTitle() + "] operation=Correlate image2=[" + img2.getTitle() + "] result=[" + title + "]  do");
 	"""
 	Alternative to IJ.run where no configuration is possible:
 	cc = FFTMath()
 	cc.doMath(img1, img2)
 	"""
-	result = WindowManager.getImage("Result")
+	result = WindowManager.getImage(title)
 	IJ.run(result, "Divide...", "value=" + str(norm))
 	IJ.run(result, "Enhance Contrast", "saturated=0.0")
 	return result
@@ -88,9 +94,9 @@ def get_max(cc_img):
 	IJ.run(cc_img, "Find Maxima...", "noise=" + str(width / 4) + " output=[Point Selection]")
 	roi = cc_img.getRoi()
 	if roi.getClass() == PointRoi:
-		return roi.getBounds().x, roi.getBounds().y
+		return (roi.getBounds().x, roi.getBounds().y)
 	else:
-		return None, None
+		return (None, None)
 
 
 def createScaleBar(imp):
@@ -106,9 +112,9 @@ def createScaleBar(imp):
 	if width*pixelWidth > 10:
 		barWidth = 10 * round(width*pixelWidth / 80)
 	elif (width*pixelWidth > 1):
-		barWidth = floor((width*pixelWidth / 8) + 1)
+		barWidth = math.floor((width*pixelWidth / 8) + 1)
 	else:
-		barWidth = 0.01 * floor(100 * width*pixelWidth / 8)
+		barWidth = 0.01 * math.floor(100 * width*pixelWidth / 8)
 
 	barHeight = fontSize / 3
 	#print(barWidth, barHeight, fontSize, scaleBarColor)
