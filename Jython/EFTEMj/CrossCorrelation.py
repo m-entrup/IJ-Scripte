@@ -98,6 +98,16 @@ def get_max(cc_img):
 	else:
 		return (None, None)
 
+def get_shift(cc_img):
+	"""
+	Finds the maximum of an image and returns the offset to the centre.
+	This function is designed for use on CrossCorrelation images.
+	:param cc_img: An ImagePlus showing a CrossCorrelation.
+	"""	
+	x, y = get_max(cc_img)
+	x_off = x - cc_img.getWidth() / 2
+	y_off = y - cc_img.getHeight() / 2
+	return x_off, y_off
 
 def __create_scalebar(imp):
 	"""

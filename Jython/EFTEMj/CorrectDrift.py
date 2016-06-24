@@ -63,14 +63,12 @@ def correct_drift(img1, img2, display_cc=False):
 	:param display_cc: Activate displaying the CrossCorrelation image (default False).
 	"""
 	result = cc.perform_correlation(img1, img2)
-	x, y = cc.get_max(result)
+	x_off, y_off = cc.get_shift(result)
 	# style after maximum detection
 	if not display_cc:
 		result.hide()
 	else:
 		cc.style_cc(result)
-	x_off = x - img2.getWidth() / 2
-	y_off = y - img2.getHeight() / 2
 	if x_off == 0 and y_off == 0:
 		print 'No drift has been detected.'
 		return img1, img2
