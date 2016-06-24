@@ -2,7 +2,7 @@
 """
 file:		CrossCorrelation.py
 author:		Michael Entrup b. Epping (michael.entrup@wwu.de)
-version:	20160616
+version:	20160624
 info:		This module calculates the normalised Cross-correlation of two images.
 			There are aditional functions to style the result or find the position of the maximum.
 """
@@ -17,6 +17,11 @@ from ij.plugin import FFTMath
 from java.lang import Integer
 
 def perform_correlation(img1, img2):
+	"""
+	Return an ImagePlus that represents the normalized CrossCorrelation of two images.
+	:param img1: The ImagePlus to be used as reference.
+	:param img2: The ImagePlus its correlation to the first ImagePlus is calculated.
+	"""
 	norm = 1
 	for img in (img1, img2):
 		copy = img.duplicate()
@@ -24,9 +29,13 @@ def perform_correlation(img1, img2):
 		IJ.run(copy, "Square", "");
 		stat = copy.getStatistics(Stats.MEAN)
 		norm *= math.sqrt(stat.umean) * math.sqrt(img.getWidth()) * math.sqrt(img.getHeight())
-	#cc = FFTMath()
-	#cc.doMath(img1, img2)
-	IJ.run(img1, "FD Math...", "image1=" + img1.getTitle() + " operation=Correlate image2=" + img2.getTitle() + " result=Result do");
+	# Include image names in square brackets to handle file names with spaces.
+	IJ.run(img1, "FD Math...", "image1=[" + img1.getTitle() + "] operation=Correlate image2=[" + img2.getTitle() + "] result=Result do");
+	"""
+	Alternative to IJ.run where no configuration is possible:
+	cc = FFTMath()
+	cc.doMath(img1, img2)
+	"""
 	result = WindowManager.getImage("Result")
 	IJ.run(result, "Divide...", "value=" + str(norm))
 	IJ.run(result, "Enhance Contrast", "saturated=0.0")
@@ -34,6 +43,12 @@ def perform_correlation(img1, img2):
 
 
 def style_cc(cc_img):
+	"""
+	Styles an ImagePlus that shows a CrossCorrelation.
+	The maximum is marked by a point selection.
+	Scale bar and intensity calibration are added.
+	:param cc_img: An ImagePlus that shows a CrossCorrelation.
+	"""
 	new = ""
 	stat = cc_img.getStatistics(Stats.MIN_MAX)
 	min = round(50 * stat.min) / 50
@@ -60,8 +75,15 @@ def style_cc(cc_img):
 	IJ.run(cc_img, "Select None", "");
 	createScaleBar(cc_img)
 	createCalBar(cc_img)
+	if not cc_img.isVisible():
+		cc_img.show()
 
 def get_max(cc_img):
+	"""
+	Finds the maximum of an image and returns it as a list of the length 2.
+	This function is designed for use on CrossCorrelation images.
+	:param cc_img: An ImagePlus showing a CrossCorrelation.
+	"""
 	width = cc_img.getWidth()
 	IJ.run(cc_img, "Find Maxima...", "noise=" + str(width / 4) + " output=[Point Selection]")
 	roi = cc_img.getRoi()
@@ -72,6 +94,10 @@ def get_max(cc_img):
 
 
 def createScaleBar(imp):
+	"""
+	Creates a scale bar and adds it to an ImagePlus. Nothing is returned.
+	:param imp: The imagePlus the scale bar is added to.
+	"""
 	width = imp.getWidth()
 	fontSize = width / 4096 * 150
 	scaleBarColor = "White"
@@ -90,6 +116,10 @@ def createScaleBar(imp):
 
 
 def createCalBar(imp):
+	"""
+	Creates a calibration bar and adds it to an ImagePlus. Nothing is returned.
+	:param imp: The imagePlus the calibration bar is added to.
+	"""
 	fontSize = 10;
 	zoom = imp.getWidth() / 4096 * 10;
 	IJ.run(imp, "Calibration Bar...", "location=[Upper Right] fill=White label=Black number=3 decimal=2 font=%d zoom=%d overlay" % (fontSize, zoom));
