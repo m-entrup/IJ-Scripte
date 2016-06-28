@@ -22,10 +22,7 @@ from ij import IJ, WindowManager
 
 def get_drift(i, j, images):
     cc_img = CC.perform_correlation(images[i], images[j])
-    offset = CC.get_shift(cc_img)
-    # Mark the image as unchanged to close it without query
-    cc_img.changes = False
-    cc_img.close()
+    offset = CC.get_drift(cc_img)
     """ DEBUG
     print 'Reference: %s at index %i' % (images[i],i)
     print 'Drifted image: %s at index %i' % (images[j],j)
@@ -67,15 +64,15 @@ def main():
     for i in range(len(images)):
         # print  'i=%i: ' % i, range(i + 1, len(images))
         for j in range(i + 1, len(images)):
-            shift = get_drift(i, j, images)
+            drift = get_drift(i, j, images)
             """ DEBUG
             print 'Appending to %i/%i:' % (i, j)
             print shift
             """
             print 'Matrix element: ', i, j
-            print 'Adding value: ', shift
-            drift_matrix[i][j] = shift
-            drift_matrix[j][i] = tuple([-val for val in shift])
+            print 'Adding value: ', drift
+            drift_matrix[i][j] = drift
+            drift_matrix[j][i] = tuple([-val for val in drift])
     print 'Drift matrix:'
     pprint.pprint(drift_matrix)
     centers = [center_of_list_of_pairs(row) for row in drift_matrix]
