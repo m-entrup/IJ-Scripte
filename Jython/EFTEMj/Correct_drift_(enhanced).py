@@ -1,7 +1,7 @@
 """
 file:       Correct_drift_(enhanced).py
 author:     Michael Entrup b. Epping (michael.entrup@wwu.de)
-version:    20160624
+version:    20160629
 info:       A script that corrects the drift between any number of images.
             The images are not changed. A stack is created that holds the corrected images.
 """
@@ -18,6 +18,7 @@ import CrossCorrelation as CC
 import HelperDialogs as dialogs
 
 import operator, copy, pprint
+import math
 from ij import IJ, WindowManager, ImageStack, ImagePlus
 from ij.plugin import Duplicator
 
@@ -31,30 +32,32 @@ def get_drift(i, j, images):
     """
     return offset
 
-def perform_func_on_list_of_pairs(func, pair_list):
-    xs, ys = zip(*pair_list)
+def perform_func_on_list_of_pairs(func, list_of_pairs):
+    xs, ys = zip(*list_of_pairs)
     return (func(xs), func(ys))
 
-def mean_of_list_of_pairs(pair_list):
+def mean_of_list_of_pairs(list_of_pairs):
     def func(vals):
         return sum(vals)/len(vals)
-    return perform_func_on_list_of_pairs(func, pair_list)
+    return perform_func_on_list_of_pairs(func, list_of_pairs)
 
-def center_of_list_of_pairs(pair_list):
+def center_of_list_of_pairs(list_of_pairs):
     def func(vals):
         return (max(vals) + min(vals)) / 2
-    return perform_func_on_list_of_pairs(func, pair_list)
+    return perform_func_on_list_of_pairs(func, list_of_pairs)
 
 def shift_images(img_list, shift_vector):
     """
-    returns a list of new images that are shifted by the given values.
+    Returns a list of new images that are shifted by the given values.
+    It is necessary to round down the shift values as ImageJ can only translate by integer values.
     :param img_list: A list of images to be shifted.
     :param shift_vector: A List of x-, y-coordinates to define the shift per image.
     """
+    shift_vector = [(math.floor(shift[0]), math.floor(shift[1])) for shift in shift_vector]
     shifted_list = [Duplicator().run(img) for img in img_list]
     def make_title(i):
         old_title = img_list[i].getTitle()
-        new_title = 'DK$%f$%f$%s' % (shift_vector[i][0],shift_vector[i][1], old_title)
+        new_title = 'DK#%d&%d#%s' % (shift_vector[i][0],shift_vector[i][1], old_title)
         return new_title
     [img.setTitle(make_title(i)) for i, img in enumerate(shifted_list)]
     [IJ.run(img, 'Translate...', 'x=%d y=%d interpolation=None' % (shift_vector[i][0], shift_vector[i][1]))
@@ -91,9 +94,9 @@ def main():
             drift_matrix[j][i] = tuple([-val for val in drift])
     # print 'Drift matrix:'
     # pprint.pprint(drift_matrix)
-    centers = [center_of_list_of_pairs(row) for row in drift_matrix]
+    barycenters = [mean_of_list_of_pairs(row) for row in drift_matrix]
     # print 'List of centers: ', centers
-    mod_matrix = [[tuple(map(operator.sub, cell, centers[i])) for cell in row]
+    mod_matrix = [[tuple(map(operator.sub, cell, barycenters[i])) for cell in row]
         for i, row in enumerate(drift_matrix)]
     # print 'Modified drift matrix:'
     # pprint.pprint(mod_matrix)
