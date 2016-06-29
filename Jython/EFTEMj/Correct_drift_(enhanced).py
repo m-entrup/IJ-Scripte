@@ -7,6 +7,7 @@ info:       A script that corrects the drift between any number of images.
 """
 
 from __future__ import with_statement, division
+
 from sys import modules, path
 # When using own modules it is necessary to use 'sys.modules.clear()'.
 # https://groups.google.com/forum/#!msg/fiji-devel/2YshfLDHiIY/MR0LoRJ6tm4J
@@ -15,11 +16,12 @@ modules.clear()
 from java.lang.System import getProperty
 path.append(getProperty('fiji.dir') + '/plugins/Scripts/Plugins/EFTEMj/')
 import CrossCorrelation as CC
+import CorrectDrift as drift
 import HelperDialogs as dialogs
+import Tools as tools
 
-import operator, copy, pprint
-import math
-from ij import IJ, WindowManager, ImageStack, ImagePlus
+import pprint
+from ij import IJ, WindowManager, ImagePlus
 from ij.plugin import Duplicator
 
 def get_drift(i, j, images):
@@ -31,38 +33,6 @@ def get_drift(i, j, images):
     print 'Offset: %d,%d\n' % offset
     """
     return offset
-
-def perform_func_on_list_of_pairs(func, list_of_pairs):
-    xs, ys = zip(*list_of_pairs)
-    return (func(xs), func(ys))
-
-def mean_of_list_of_pairs(list_of_pairs):
-    def func(vals):
-        return sum(vals)/len(vals)
-    return perform_func_on_list_of_pairs(func, list_of_pairs)
-
-def center_of_list_of_pairs(list_of_pairs):
-    def func(vals):
-        return (max(vals) + min(vals)) / 2
-    return perform_func_on_list_of_pairs(func, list_of_pairs)
-
-def shift_images(img_list, shift_vector):
-    """
-    Returns a list of new images that are shifted by the given values.
-    It is necessary to round down the shift values as ImageJ can only translate by integer values.
-    :param img_list: A list of images to be shifted.
-    :param shift_vector: A List of x-, y-coordinates to define the shift per image.
-    """
-    shift_vector = [(math.floor(shift[0]), math.floor(shift[1])) for shift in shift_vector]
-    shifted_list = [Duplicator().run(img) for img in img_list]
-    def make_title(i):
-        old_title = img_list[i].getTitle()
-        new_title = 'DK#%d&%d#%s' % (shift_vector[i][0],shift_vector[i][1], old_title)
-        return new_title
-    [img.setTitle(make_title(i)) for i, img in enumerate(shifted_list)]
-    [IJ.run(img, 'Translate...', 'x=%d y=%d interpolation=None' % (shift_vector[i][0], shift_vector[i][1]))
-        for i, img in enumerate(shifted_list)]
-    return shifted_list
 
 def main():
     img_count = IJ.getNumber("How many images do you want to correct?", 3)
@@ -83,31 +53,20 @@ def main():
     for i in range(len(images)):
         # print  'i=%i: ' % i, range(i + 1, len(images))
         for j in range(i + 1, len(images)):
-            drift = get_drift(i, j, images)
+            img_drift = get_drift(i, j, images)
             """ DEBUG
             print 'Appending to %i/%i:' % (i, j)
             print shift
             """
             # print 'Matrix element: ', i, j
             # print 'Adding value: ', drift
-            drift_matrix[i][j] = drift
-            drift_matrix[j][i] = tuple([-val for val in drift])
+            drift_matrix[i][j] = img_drift
+            drift_matrix[j][i] = tuple([-val for val in img_drift])
     # print 'Drift matrix:'
     # pprint.pprint(drift_matrix)
-    barycenters = [mean_of_list_of_pairs(row) for row in drift_matrix]
-    # print 'List of centers: ', centers
-    mod_matrix = [[tuple(map(operator.sub, cell, barycenters[i])) for cell in row]
-        for i, row in enumerate(drift_matrix)]
-    # print 'Modified drift matrix:'
-    # pprint.pprint(mod_matrix)
-    rot_matrix = [list(x) for x in zip(*mod_matrix)]
-    # print 'Rotated matrix:'
-    # pprint.pprint(rot_matrix)
-    shift_vector = [tuple(map(operator.neg, tup))
-        for tup in [mean_of_list_of_pairs(row) for row in rot_matrix]]
+    shift_vector = drift.drift_vector_from_drift_matrix(drift_matrix)
     # print 'Optimized shift vector: ', shift_vector
-    stack = ImageStack(images[0].getWidth(), images[0].getHeight())
-    [stack.addSlice(img.getTitle(), img.getProcessor()) for img in shift_images(images, shift_vector)]
+    stack = tools.stack_from_list_of_imp(drift.shift_images(images, shift_vector))
     corrected_stack = ImagePlus('Drift corrected stack', stack)
     corrected_stack.show()
 
