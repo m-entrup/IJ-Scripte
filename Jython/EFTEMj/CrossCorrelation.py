@@ -8,21 +8,31 @@ info:       This module calculates the normalised Cross-correlation of two image
 '''
 
 from __future__ import with_statement, division
+
+from sys import modules, path
+# When using own modules it is necessary to use 'sys.modules.clear()'.
+# https://groups.google.com/forum/#!msg/fiji-devel/2YshfLDHiIY/MR0LoRJ6tm4J
+# https://stackoverflow.com/questions/10531920/jython-import-or-reload-dynamically
+modules.clear()
+from java.lang.System import getProperty
+path.append(getProperty('fiji.dir') + '/plugins/Scripts/Plugins/EFTEMj/')
+import Tools as tools
+
 import math
 from ij import IJ, WindowManager, ImagePlus
 from ij.measure import Calibration as Cal
 from ij.process import ImageStatistics as Stats, FHT
 from ij.gui import Line, PointRoi
-from ij.plugin import FFTMath
+from ij.plugin import FFTMath, CanvasResizer
 from java.lang import Integer
 
 def _calc_correlation(img1, img2):
-    """
+    '''
     Return the cross correlation between the given images.
     The same steps are used as in FFTMath.
     :param img1: The ImagePlus to be used as reference.
     :param img2: The ImagePlus its correlation to the first ImagePlus is calculated.
-    """
+    '''
     fht1  = img1.getProperty('FHT')
     if not fht1 == None:
         h1 = FHT(fht1)
@@ -178,3 +188,21 @@ def __create_calbar(imp):
     fontSize = 10;
     zoom = imp.getWidth() / 4096 * 10;
     IJ.run(imp, 'Calibration Bar...', 'location=[Upper Right] fill=White label=Black number=3 decimal=2 font=%d zoom=%d overlay' % (fontSize, zoom));
+
+def scale_to_power_of_two(images):
+    ''' Renturn a list o images with with and height as power of two.
+    The original image is centered.
+    :param images: A list of images to process.
+    '''
+    dim = [(imp.getWidth(), imp.getHeight()) for imp in images]
+    max_dim = max(tools.perform_func_on_list_of_tuples(max, dim))
+    new_size = 2
+    while new_size < max_dim:
+        new_size *= 2
+    resizer = CanvasResizer()
+    def resize(imp):
+        x_off = int(math.floor((new_size - imp.getWidth()) / 2))
+        y_off = int(math.floor((new_size - imp.getHeight()) / 2))
+        # print x_off, y_off
+        return resizer.expandImage(imp.getProcessor(), new_size, new_size, x_off, y_off)
+    return [ImagePlus(imp.getTitle(), resize(imp)) for imp in images]

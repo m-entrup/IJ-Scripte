@@ -14,7 +14,7 @@ makeRectangle(x, y, w, h);
 run("Add...", "value=" + counts);
 run("Enhance Contrast", "saturated=0.35");
 run("Select None");
-run("Add Specified Noise...", "standard=50");
+run("Add Specified Noise...", "standard=" + stdv);
 
 for (i = 2; i <= images; i++) {
 	x_off = round(2 * (random - 0.5) * (x - w/2));
