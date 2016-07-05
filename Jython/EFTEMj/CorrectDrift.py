@@ -1,9 +1,9 @@
 ﻿# coding=utf-8
 """
-file:        CorrectDrift.py
-author:        Michael Entrup b. Epping (michael.entrup@wwu.de)
-version:    20160629
-info:        This module will correct the drift between two images.
+file:       CorrectDrift.py
+author:     Michael Entrup b. Epping (michael.entrup@wwu.de)
+version:	20160629
+info:       This module will correct the drift between two images.
 """
 
 from __future__ import with_statement, division
