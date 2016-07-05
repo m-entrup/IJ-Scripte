@@ -20,7 +20,7 @@ import CorrectDrift as drift
 import HelperDialogs as dialogs
 import Tools as tools
 
-import pprint
+from pprint import pprint
 from ij import IJ, WindowManager, ImagePlus
 from ij.plugin import Duplicator
 
@@ -61,7 +61,7 @@ def run_script():
             drift_matrix[i][j] = img_drift
             drift_matrix[j][i] = tuple([-val for val in img_drift])
     # print 'Drift matrix:'
-    # pprint.pprint(drift_matrix)
+    # pprint(drift_matrix)
     shift_vector = drift.drift_vector_from_drift_matrix(drift_matrix)
     # print 'Optimized shift vector: ', shift_vector
     stack = tools.stack_from_list_of_imp(drift.shift_images(images, shift_vector))
