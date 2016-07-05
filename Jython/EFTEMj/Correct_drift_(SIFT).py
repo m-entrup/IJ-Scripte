@@ -16,19 +16,11 @@ from java.lang.System import getProperty
 path.append(getProperty('fiji.dir') + '/plugins/Scripts/Plugins/EFTEMj/')
 import pySIFT
 import CorrectDrift as drift
-import HelperDialogs as dialogs
 import Tools as tools
 
-from pprint import pprint
+# from pprint import pprint
 
-from java.util import ArrayList, Vector
-from java.lang import Float, Class
-
-from ij import IJ, WindowManager, ImageStack, ImagePlus
-
-from mpicbg.imagefeatures import FloatArray2DSIFT, Feature
-from mpicbg.ij import SIFT, InverseTransformMapping
-from mpicbg.models import TranslationModel2D
+from ij import IJ, ImagePlus
 
 '''
     alignedSlice = ip2.createProcessor(stack.getWidth(), stack.getHeight())

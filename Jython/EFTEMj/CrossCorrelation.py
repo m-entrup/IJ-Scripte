@@ -40,7 +40,7 @@ def _calc_correlation(img1, img2):
         h1 = FHT(img1.getProcessor())
     fht2  = img2.getProperty('FHT')
     if not fht2 == None:
-        h2 = FHT(fht2);
+        h2 = FHT(fht2)
     else:
         h2 = FHT(img2.getProcessor())
     if not h1.powerOf2Size():
@@ -106,23 +106,24 @@ def style_cc(cc_img):
     '''
     new = ''
     stat = cc_img.getStatistics(Stats.MIN_MAX)
-    min = round(50 * stat.min) / 50
-    max = round(50 * stat.max) / 50
-    cc_img.getProcessor().setMinAndMax(min, max)
+    minimum = round(50 * stat.min) / 50
+    maximum = round(50 * stat.max) / 50
+    cc_img.getProcessor().setMinAndMax(minimum, maximum)
     if cc_img.getWidth() < 512:
         scale = 2
         while cc_img.getWidth() * scale < 512:
             scale *= 2
         title = cc_img.getTitle()
-        new = IJ.run(cc_img, 'Scale...', 'x=' + scale + ' y=' + scale + ' z=1.0 interpolation=None create');
+        new = IJ.run(cc_img, 'Scale...',
+                     'x=' + scale + ' y=' + scale + ' z=1.0 interpolation=None create')
         cc_img.close()
         new.rename(title)
         cc_img = new
     width = cc_img.getWidth()
     height = cc_img.getHeight()
-    IJ.run(cc_img, 'Remove Overlay', '');
+    IJ.run(cc_img, 'Remove Overlay', '')
     cc_img.setRoi(Line(0.5 * width, 0, 0.5 * width, height))
-    IJ.run(cc_img, 'Add Selection...', '');
+    IJ.run(cc_img, 'Add Selection...', '')
     cc_img.setRoi(Line(0, 0.5 * height, width, 0.5 * height))
     IJ.run(cc_img, 'Add Selection...', '')
     IJ.run(cc_img, 'Find Maxima...', 'noise=' + str(width / 4) + ' output=[Point Selection]')
@@ -193,9 +194,10 @@ def __create_calbar(imp):
     Creates a calibration bar and adds it to an ImagePlus. Nothing is returned.
     :param imp: The imagePlus the calibration bar is added to.
     '''
-    fontSize = 10;
-    zoom = imp.getWidth() / 4096 * 10;
-    IJ.run(imp, 'Calibration Bar...', 'location=[Upper Right] fill=White label=Black number=3 decimal=2 font=%d zoom=%d overlay' % (fontSize, zoom));
+    fontSize = 10
+    zoom = imp.getWidth() / 4096 * 10
+    IJ.run(imp, 'Calibration Bar...',
+                   'location=[Upper Right] fill=White label=Black number=3 decimal=2 font=%d zoom=%d overlay' % (fontSize, zoom))
 
 def scale_to_power_of_two(images):
     ''' Renturn a list o images with with and height as power of two.

@@ -17,11 +17,10 @@ from java.lang.System import getProperty
 path.append(getProperty('fiji.dir') + '/plugins/Scripts/Plugins/EFTEMj/')
 import CrossCorrelation as CC
 import CorrectDrift as drift
-import HelperDialogs as dialogs
 import Tools as tools
 
-from pprint import pprint
-from ij import IJ, WindowManager, ImagePlus
+# from pprint import pprint
+from ij import IJ, ImagePlus
 from ij.plugin import Duplicator
 
 def get_drift(i, j, images):

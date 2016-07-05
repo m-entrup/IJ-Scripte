@@ -49,7 +49,8 @@ def stack_from_list_of_imp(list_of_imps):
     :param list_of_imp: A list of ImagePlus objects.
     '''
     stack = ImageStack(list_of_imps[0].getWidth(), list_of_imps[0].getHeight())
-    [stack.addSlice(img.getTitle(), img.getProcessor()) for img in list_of_imps]
+    for img in list_of_imps:
+        stack.addSlice(img.getTitle(), img.getProcessor())
     return stack
 
 def stack_to_list_of_imp(imp_stack):

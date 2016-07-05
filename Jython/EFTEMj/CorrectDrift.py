@@ -73,7 +73,7 @@ def correct_drift(img1, img2, display_cc=False):
     else:
         cc.style_cc(result)
     if x_off == 0 and y_off == 0:
-        print 'No drift has been detected.'
+        print('No drift has been detected.')
         return img1, img2
     title = img2.getTitle()
     img2_dk = Duplicator().run(img2)
@@ -122,7 +122,8 @@ def shift_images(img_list, shift_vector):
         old_title = img_list[i].getTitle()
         new_title = 'DK#%d&%d#%s' % (shift_vector[i][0],shift_vector[i][1], old_title)
         return new_title
-    [img.setTitle(make_title(i)) for i, img in enumerate(shifted_list)]
-    [IJ.run(img, 'Translate...', 'x=%d y=%d interpolation=None' % (shift_vector[i][0], shift_vector[i][1]))
-        for i, img in enumerate(shifted_list)]
+    for i, img in enumerate(shifted_list):
+        img.setTitle(make_title(i))
+    for i, img in enumerate(shifted_list):
+        IJ.run(img, 'Translate...', 'x=%d y=%d interpolation=None' % (shift_vector[i][0], shift_vector[i][1]))
     return shifted_list

@@ -36,16 +36,16 @@ def run_script():
     img_ratio.show()
     IJ.run(img_ratio, "Enhance Contrast", "saturated=0.35")
     # We want to optimise the lower displaylimit:
-    min = img_ratio.getProcessor().getMin()
-    max = img_ratio.getProcessor().getMax()
+    minimum = img_ratio.getProcessor().getMin()
+    maximum = img_ratio.getProcessor().getMax()
     stat = img_ratio.getStatistics(Stats.MEAN + Stats.STD_DEV)
     mean = stat.mean
     stdv = stat.stdDev
-    if min < mean - stdv:
+    if minimum < mean - stdv:
         if mean - stdv >= 0:
-            img_ratio.getProcessor().setMinAndMax(mean - stdv, max)
+            img_ratio.getProcessor().setMinAndMax(mean - stdv, maximum)
         else:
-            img_ratio.getProcessor().setMinAndMax(0, max)
+            img_ratio.getProcessor().setMinAndMax(0, maximum)
         img_ratio.updateAndDraw()
 
 if __name__ == '__main__':
