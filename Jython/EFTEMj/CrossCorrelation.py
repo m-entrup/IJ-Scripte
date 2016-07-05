@@ -147,6 +147,14 @@ def get_max(cc_img):
     else:
         return (None, None)
 
+def get_shift(cc_img):
+    '''
+    Finds the maximum of an image and returns the offset to the centre.
+    This function is designed for use on CrossCorrelation images.
+    :param cc_img: An ImagePlus showing a CrossCorrelation.
+    '''
+    return get_drift(cc_img)
+
 def get_drift(cc_img):
     '''
     Finds the maximum of an image and returns the offset to the centre.
