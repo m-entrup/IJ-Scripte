@@ -1,14 +1,28 @@
-"""
+'''
 file:       Correct_drift_(SIFT).py
 author:     Michael Entrup b. Epping (michael.entrup@wwu.de)
-version:    20160628
+version:    20160705
 info:       ...
-"""
+'''
+
+from __future__ import with_statement, division
+
+from sys import modules, path
+# When using own modules it is necessary to use 'sys.modules.clear()'.
+# https://groups.google.com/forum/#!msg/fiji-devel/2YshfLDHiIY/MR0LoRJ6tm4J
+# https://stackoverflow.com/questions/10531920/jython-import-or-reload-dynamically
+modules.clear()
+from java.lang.System import getProperty
+path.append(getProperty('fiji.dir') + '/plugins/Scripts/Plugins/EFTEMj/')
+import pySIFT
+import CorrectDrift as drift
+import HelperDialogs as dialogs
+import Tools as tools
 
 from pprint import pprint
 
 from java.util import ArrayList, Vector
-from java.lang import Float
+from java.lang import Float, Class
 
 from ij import IJ, WindowManager, ImageStack, ImagePlus
 
@@ -16,48 +30,32 @@ from mpicbg.imagefeatures import FloatArray2DSIFT, Feature
 from mpicbg.ij import SIFT, InverseTransformMapping
 from mpicbg.models import TranslationModel2D
 
-class Param:
-    sift = FloatArray2DSIFT.Param()
-    # Closest/next closest neighbour distance ratio
-    rod = 0.92
-    #Maximal allowed alignment error in px
-    maxEpsilon = 25.0
-    # Inlier/candidates ratio
-    minInlierRatio = 0.05
-    # Implemeted transformation models for choice
-    modelStrings = ['Translation,' 'Rigid', 'Similarity', 'Affine']
-    modelIndex = 1
-    interpolate = True
-    showInfo = False
-
-def main():
-    p = Param()
-    imp = WindowManager.getCurrentImage()
-    stack = imp.getStack()
-    ip1 = stack.getProcessor(1)
-    ip2 = stack.getProcessor(2)
-    sift = FloatArray2DSIFT(p.sift)
-    fs1 = ArrayList()
-    fs2 = ArrayList()
-    ijSIFT = SIFT(sift)
-    ijSIFT.extractFeatures(ip1, fs1)
-    print '%i features extracted from %s' %(len(fs1), stack.getShortSliceLabel(1))
-    ijSIFT.extractFeatures(ip2, fs2)
-    print '%i features extracted from %s' %(len(fs2), stack.getShortSliceLabel(2))
-    model = TranslationModel2D()
-    mapping = InverseTransformMapping(model)
-    candidates = FloatArray2DSIFT.createMatches( fs2, fs1, 1.5, None, Float.MAX_VALUE, p.rod )
-    print '%i potentially corresponding features identified' % len(candidates)
-    inliers = Vector()
-    model.filterRansac(candidates, inliers, 1000, p.maxEpsilon, p.minInlierRatio)
-    """
-    transform = [0.0] * 6
-    model.toArray(transform)
-    pprint(transform)
-    """
-    print model.createAffine().translateX, model.createAffine().translateY
+'''
     alignedSlice = ip2.createProcessor(stack.getWidth(), stack.getHeight())
     mapping.map(ip2, alignedSlice)
     ImagePlus('Corrected', alignedSlice).show()
+'''
 
-main()
+def run_script():
+    img_count = int(IJ.getNumber('How many images do you want to correct (>=3)?', 3))
+    # If canceld IJ.getNumber() returns -Integer.MAX_VALUE
+    if img_count < 3:
+        return
+    images = tools.get_images(exact=img_count)
+    if not images:
+        IJ.showMessage('Can\'t get the demanded number of images.')
+        return
+    sift = pySIFT.pySIFT(images)
+    ''' DEBUG
+    for x in sift.all_features:
+        print(x.size())
+    '''
+    # pprint(sift.get_drift_matrix())
+    shift_vector = drift.drift_vector_from_drift_matrix(sift.drift_matrix)
+    # print 'Optimized shift vector: ', shift_vector
+    stack = tools.stack_from_list_of_imp(drift.shift_images(images, shift_vector))
+    corrected_stack = ImagePlus('Drift corrected stack', stack)
+    corrected_stack.show()
+
+if __name__ == '__main__':
+    run_script()
