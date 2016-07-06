@@ -43,7 +43,7 @@ def run_script():
         print(x.size())
     '''
     # pprint(sift.get_drift_matrix())
-    shift_vector = drift.drift_vector_from_drift_matrix(sift.drift_matrix)
+    shift_vector = drift.drift_vector_from_drift_matrix(sift.get_drift_matrix())
     # print 'Optimized shift vector: ', shift_vector
     stack = tools.stack_from_list_of_imp(drift.shift_images(images, shift_vector))
     corrected_stack = ImagePlus('Drift corrected stack', stack)
