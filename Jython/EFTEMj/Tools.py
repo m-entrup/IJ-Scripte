@@ -123,3 +123,9 @@ def get_images(minimum=0, maximum=None, exact=None):
         return None
     images = [WindowManager.getImage(image_ids[selection]) for selection in images_selected]
     return images
+
+
+def copy_scale(list_of_imps_from, list_of_imps_to):
+    '''Uses the ImagePlus method copyScale() to copy the calibration.'''
+    for imp_from, imp_to in zip(list_of_imps_from, list_of_imps_to):
+        imp_to.copyScale(imp_from)

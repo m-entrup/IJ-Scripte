@@ -33,6 +33,8 @@ def get_setup():
         'and the images to process.')
     gd.addChoice('Mode:', options, options[0])
     image_ids = WindowManager.getIDList()
+    if not image_ids or len(image_ids) < 2:
+        return [None]*3
     image_titles = [WindowManager.getImage(id).getTitle() for id in image_ids]
     gd.addMessage('Post-edge is divided by the pre-edge.')
     gd.addChoice('Pre-edge', image_titles, image_titles[0])
@@ -47,14 +49,15 @@ def get_setup():
 
 
 def run_script():
-    selected_mode, img1, img2 = get_setup()
+    selected_mode, img1_in, img2_in = get_setup()
     if not selected_mode:
         return
-    corrected_stack = drift.get_corrected_stack((img1, img2), mode = selected_mode)
+    corrected_stack = drift.get_corrected_stack((img1_in, img2_in), mode = selected_mode)
     img1, img2 = tools.stack_to_list_of_imp(corrected_stack)
     img_ratio = ImageCalculator().run('Divide create', img2, img1)
     img_ratio.setTitle('Jump-ratio [%s divided by %s]' % (img2.getShortTitle(), img1.getShortTitle()))
     img_ratio.changes = True
+    img_ratio.copyScale(img1_in)
     img_ratio.show()
     IJ.run(img_ratio, 'Enhance Contrast', 'saturated=0.35')
     # We want to optimise the lower displaylimit:

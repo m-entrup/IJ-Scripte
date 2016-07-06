@@ -26,6 +26,7 @@ def run_script():
         return
     elif len(images) >= 2:
         corrected_stack = drift.get_corrected_stack(images, 'SIFT')
+        corrected_stack.copyScale(images[0])
         corrected_stack.show()
 
 

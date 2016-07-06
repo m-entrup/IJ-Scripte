@@ -39,6 +39,7 @@ def correct_drift(img1, img2, display_cc=False):
     if not display_cc:
         result.hide()
     else:
+        result.copyScale(img1)
         cc.style_cc(result)
     if x_off == 0 and y_off == 0:
         print('No drift has been detected.')
@@ -47,6 +48,7 @@ def correct_drift(img1, img2, display_cc=False):
     img2_dk = Duplicator().run(img2)
     img2_dk.setTitle('DK-' + title)
     IJ.run(img2_dk, 'Translate...', 'x=%d y=%d interpolation=None' % (x_off, y_off))
+    img2_dk.copyScale(img2)
     img2_dk.show()
     return img1, img2_dk
 
