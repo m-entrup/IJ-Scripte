@@ -1,9 +1,9 @@
 ﻿# coding=utf-8
 '''
-file:        Tools.py
-author:        Michael Entrup b. Epping (michael.entrup@wwu.de)
-version:    20160629
-info:        This module contains different usefull functions.
+file:       Tools.py
+author:     Michael Entrup b. Epping (michael.entrup@wwu.de)
+version:    20160706
+info:       This module contains different usefull functions.
 '''
 
 from __future__ import with_statement, division
@@ -19,6 +19,7 @@ import HelperDialogs as dialogs
 
 from ij import IJ, ImagePlus, ImageStack, WindowManager
 
+
 def perform_func_on_list_of_tuples(func, list_of_tuples):
     ''' Returns a tuple that contains the results of the given function.
     :param func: A function that needs a list as argument.
@@ -28,6 +29,7 @@ def perform_func_on_list_of_tuples(func, list_of_tuples):
     tuple_of_lists = tuple(zip(*list_of_tuples))
     return tuple(func(item) for item in tuple_of_lists)
 
+
 def mean_of_list_of_tuples(list_of_tuples):
     ''' Returns the mean vector of a list of vectors.
     :param list_of_tuples: The tuples represent vectors (e.g. Points in 2D space).
@@ -35,6 +37,7 @@ def mean_of_list_of_tuples(list_of_tuples):
     def func(vals):
         return sum(vals)/len(vals)
     return perform_func_on_list_of_tuples(func, list_of_tuples)
+
 
 def center_of_list_of_tuples(list_of_tuples):
     ''' Returns the center vector of a list of vectors $c_i = (min_i + max_i) / 2$.
@@ -44,6 +47,7 @@ def center_of_list_of_tuples(list_of_tuples):
         return (max(vals) + min(vals)) / 2
     return perform_func_on_list_of_tuples(func, list_of_tuples)
 
+
 def stack_from_list_of_imp(list_of_imps):
     ''' Returns an ImageStack that contains the images of the given list.
     :param list_of_imp: A list of ImagePlus objects.
@@ -52,6 +56,7 @@ def stack_from_list_of_imp(list_of_imps):
     for img in list_of_imps:
         stack.addSlice(img.getTitle(), img.getProcessor())
     return stack
+
 
 def stack_to_list_of_imp(imp_stack):
     ''' Returns a list of newly created ImagePlus objects.
@@ -63,12 +68,16 @@ def stack_to_list_of_imp(imp_stack):
     images = [ImagePlus(label, ip) for label, ip in zip(labels, ips)]
     return images
 
+
 def get_images(minimum=0, maximum=None, exact=None):
-    ''' returns a list of ImagePlus objects or None if it failed.
-    :param minimum: The minimum number of images to select.
-    :param maximum: The maximum number of images to select.
-    :param exact: Set this to get an exact number of images.
+    ''' Returns a list of ImagePlus objects or None if it failed.
+    Passing None as parameter will trigger a dialog to show up to enter the exact number of images.
+    :param minimum: The minimum number of images to select (default: 0).
+    :param maximum: The maximum number of images to select (default: None).
+    :param exact: Set this to get an exact number of images (default: None).
     '''
+    if not (minimum or maximum or exact):
+        exact = int(IJ.getNumber("How many images do you want to process?", 3))
     def check_count(count):
         # print count, exact, minimum, maximum
         if exact:
