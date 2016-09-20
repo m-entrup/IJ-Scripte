@@ -25,7 +25,8 @@ function stackToArray(imp) {
 		offset = IJ.getNumber("Enter energy loss offset: ", offset);
 		if (offset == IJ.CANCELED) {
 			return IJ.CANCELED;
-		}
+		}		
+		IJ.showStatus("Preparing the data...");
 		for (z = 0; z < imp.getStackSize(); z++) {
 			label = stack.getShortSliceLabel(z+1);
 			elosses.push(parseFloat(pattern.exec(label)) - offset);
@@ -42,6 +43,7 @@ function stackToArray(imp) {
 				}
 				array.push(new PixelObject(x, y, elosses, valsY));
 			}
+			IJ.showProgress(y+1, imp.getHeight());
 		}
 		array.width = imp.getWidth();
 		array.height = imp.getHeight();
@@ -83,6 +85,31 @@ function createResultingImp(array) {
 	}
 }
 
+function multithreader(fun, array) {
+		with (new JavaImporter(Packages.java.lang.Thread, Packages.ij.IJ)) {
+	        var threads = java.lang.reflect.Array.newInstance(Thread.class, java.lang.Runtime.getRuntime().availableProcessors());
+        	var ai = new java.util.concurrent.atomic.AtomicInteger(0);
+        	var progress = new java.util.concurrent.atomic.AtomicInteger(1);
+	        var body = {
+	                run: function() {
+	                        for (var i = ai.getAndIncrement(); i < array.length; i = ai.getAndIncrement()) {
+	                                fun(array[i]);
+	                                IJ.showProgress(progress.getAndIncrement(), array.length);
+	                        }
+	                }
+	        }
+	        // start all threads
+	        for (var i = 0; i < threads.length; i++) {
+	                threads[i] = new Thread(new java.lang.Runnable(body)); // automatically as Runnable
+	                threads[i].start();
+	        }
+	        // wait until all threads finish
+	        for (var i = 0; i < threads.length; i++) {
+	                threads[i].join();
+	        }
+		}
+}
+
 function main() {
 	with (Imports) {
 		var inputImp, binnedImp, bin, zProfiles, zProfilesExport, textWindow;
@@ -97,15 +124,20 @@ function main() {
 		if (bin == IJ.CANCELED) {
 			return;
 		}
+		IJ.showStatus("Preparing the data...");
+		IJ.showProgress(0);
 		IJ.run(binnedImp, "Bin...", "x=" + bin + " y=" + bin + " bin=Average");
 		zProfiles = stackToArray(binnedImp);
 		if (zProfiles == IJ.CANCELED) {
 			return;
 		}
 		if (inputImp.getStackSize() * inputImp.getWidth() * inputImp.getHeight() < Math.pow(2, 24) * bin) {
+			IJ.showStatus("Preparing the JSON export...");
 			export2JSON(zProfiles);
 		}
-		zProfiles.forEach(fitGauss);
+		IJ.showStatus("Calculating the NIC...");
+		IJ.showProgress(0);
+		multithreader(fitGauss, zProfiles);
 		createResultingImp(zProfiles).show();
 	}
 }
