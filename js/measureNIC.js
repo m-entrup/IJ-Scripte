@@ -68,7 +68,7 @@ function export2JSON(array) {
 function fitGauss(obj) {
 	with (Imports) {
 		var fit = new CurveFitter(obj.valsX, obj.valsY);
-		fit.doCustomFit("y = a*exp(-(x-b)*(x-b)*(x-b)*(x-b)/(2*c*c*c*c))", null, false);
+		fit.doCustomFit("y = a*exp(-(x-b)*(x-b)*(x-b)*(x-b)/(4*c*c*c*c))", null, false);
 		obj.offset = fit.getParams()[1];
 	}
 }
@@ -86,28 +86,28 @@ function createResultingImp(array) {
 }
 
 function multithreader(fun, array) {
-		with (new JavaImporter(Packages.java.lang.Thread, Packages.ij.IJ)) {
-			var threads = java.lang.reflect.Array.newInstance(Thread.class, java.lang.Runtime.getRuntime().availableProcessors());
-			var ai = new java.util.concurrent.atomic.AtomicInteger(0);
-			var progress = new java.util.concurrent.atomic.AtomicInteger(1);
-			var body = {
-					run: function() {
-							for (var i = ai.getAndIncrement(); i < array.length; i = ai.getAndIncrement()) {
-									fun(array[i]);
-									IJ.showProgress(progress.getAndIncrement(), array.length);
-							}
-					}
-			}
-			// start all threads
-			for (var i = 0; i < threads.length; i++) {
-					threads[i] = new Thread(new java.lang.Runnable(body)); // automatically as Runnable
-					threads[i].start();
-			}
-			// wait until all threads finish
-			for (var i = 0; i < threads.length; i++) {
-					threads[i].join();
+	with (new JavaImporter(Packages.java.lang.Thread, Packages.ij.IJ)) {
+		var threads = java.lang.reflect.Array.newInstance(Thread.class, java.lang.Runtime.getRuntime().availableProcessors());
+		var ai = new java.util.concurrent.atomic.AtomicInteger(0);
+		var progress = new java.util.concurrent.atomic.AtomicInteger(1);
+		var body = {
+			run: function() {
+				for (var i = ai.getAndIncrement(); i < array.length; i = ai.getAndIncrement()) {
+					fun(array[i]);
+					IJ.showProgress(progress.getAndIncrement(), array.length);
+				}
 			}
 		}
+		// start all threads
+		for (var i = 0; i < threads.length; i++) {
+				threads[i] = new Thread(new java.lang.Runnable(body)); // automatically as Runnable
+				threads[i].start();
+		}
+		// wait until all threads finish
+		for (var i = 0; i < threads.length; i++) {
+				threads[i].join();
+		}
+	}
 }
 
 function main() {
