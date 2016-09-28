@@ -1,9 +1,9 @@
 var Imports = new JavaImporter(
-    Packages.ij.IJ,
-    Packages.ij.ImagePlus,
-    Packages.ij.ImageStack,
-    Packages.ij.plugin.Duplicator,
-    Packages.ij.measure.CurveFitter);
+	Packages.ij.IJ,
+	Packages.ij.ImagePlus,
+	Packages.ij.ImageStack,
+	Packages.ij.plugin.Duplicator,
+	Packages.ij.measure.CurveFitter);
 
 
 function PixelObject(x, y, valsX, valsY) {
@@ -26,6 +26,7 @@ function stackToArray(imp) {
 		if (offset == IJ.CANCELED) {
 			return IJ.CANCELED;
 		}
+		IJ.showStatus("Preparing the data...");
 		for (z = 0; z < imp.getStackSize(); z++) {
 			label = stack.getShortSliceLabel(z+1);
 			elosses.push(parseFloat(pattern.exec(label)) - offset);
@@ -42,6 +43,7 @@ function stackToArray(imp) {
 				}
 				array.push(new PixelObject(x, y, elosses, valsY));
 			}
+			IJ.showProgress(y+1, imp.getHeight());
 		}
 		array.width = imp.getWidth();
 		array.height = imp.getHeight();
@@ -66,8 +68,8 @@ function export2JSON(array) {
 function fitGauss(obj) {
 	with (Imports) {
 		var fit = new CurveFitter(obj.valsX, obj.valsY);
-		fit.doFit(CurveFitter.GAUSSIAN);
-		obj.offset = fit.getParams()[2];
+		fit.doCustomFit("y = a*exp(-(x-b)*(x-b)*(x-b)*(x-b)/(2*c*c*c*c))", null, false);
+		obj.offset = fit.getParams()[1];
 	}
 }
 
@@ -81,6 +83,31 @@ function createResultingImp(array) {
 		imp = new ImagePlus("NIC", fp);
 		return imp;
 	}
+}
+
+function multithreader(fun, array) {
+		with (new JavaImporter(Packages.java.lang.Thread, Packages.ij.IJ)) {
+			var threads = java.lang.reflect.Array.newInstance(Thread.class, java.lang.Runtime.getRuntime().availableProcessors());
+			var ai = new java.util.concurrent.atomic.AtomicInteger(0);
+			var progress = new java.util.concurrent.atomic.AtomicInteger(1);
+			var body = {
+					run: function() {
+							for (var i = ai.getAndIncrement(); i < array.length; i = ai.getAndIncrement()) {
+									fun(array[i]);
+									IJ.showProgress(progress.getAndIncrement(), array.length);
+							}
+					}
+			}
+			// start all threads
+			for (var i = 0; i < threads.length; i++) {
+					threads[i] = new Thread(new java.lang.Runnable(body)); // automatically as Runnable
+					threads[i].start();
+			}
+			// wait until all threads finish
+			for (var i = 0; i < threads.length; i++) {
+					threads[i].join();
+			}
+		}
 }
 
 function main() {
@@ -97,15 +124,20 @@ function main() {
 		if (bin == IJ.CANCELED) {
 			return;
 		}
+		IJ.showStatus("Preparing the data...");
+		IJ.showProgress(0);
 		IJ.run(binnedImp, "Bin...", "x=" + bin + " y=" + bin + " bin=Average");
 		zProfiles = stackToArray(binnedImp);
 		if (zProfiles == IJ.CANCELED) {
 			return;
 		}
 		if (inputImp.getStackSize() * inputImp.getWidth() * inputImp.getHeight() < Math.pow(2, 24) * bin) {
+			IJ.showStatus("Preparing the JSON export...");
 			export2JSON(zProfiles);
 		}
-		zProfiles.forEach(fitGauss);
+		IJ.showStatus("Calculating the NIC...");
+		IJ.showProgress(0);
+		multithreader(fitGauss, zProfiles);
 		createResultingImp(zProfiles).show();
 	}
 }
