@@ -8,6 +8,7 @@ run("Colors...", "foreground=white background=black selection=green");
 
 images = getNumber("Anzahl der zu erzeugnden Bilder:", 3);
 
+setBatchMode(true)
 newImage("Ref", "32-bit black", 512, 512, 1);
 run("Add...", "value=" + counts);
 makeRectangle(x, y, w, h);
@@ -26,3 +27,4 @@ for (i = 2; i <= images; i++) {
 	run("Enhance Contrast", "saturated=0.35");
 	run("Select None");run("Add Specified Noise...", "standard=" + stdv);	
 }
+setBatchMode("exit and display")
