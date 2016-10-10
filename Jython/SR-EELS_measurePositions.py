@@ -1,7 +1,7 @@
 # @File(label='Select a aperture file') first_file_pos
-# @String(label='File filter position',value='Pos') filter_pos
+# @String(label='File filter position',value='(^Pos)') filter_pos
 # @File(label='Select a SR-EELS file') first_file_eels
-# @String(label='File filter SR-EELS',value='EELS') filter_eels
+# @String(label='File filter SR-EELS',value='(^EELS)') filter_eels
 
 """
 Dieses Script wertet die Position der Rundblende in der Filtereintrittsebene,
@@ -21,7 +21,7 @@ def process_at(imp, pos):
     w = imp.getWidth()
     h = imp.getHeight()
     # Wie groß der zu betrachtende Ausschnitt ist:
-    sec = h / 64
+    sec = h / 10
     # Für die Ränder müssen wir den Offset anpassen:
     if pos * h < sec / 2:
         y_off = 0
@@ -33,6 +33,7 @@ def process_at(imp, pos):
     imp.setRoi(0, int(y_off), w, int(sec))
     x_pos = []
     width = []
+    intensity = []
     bin = 4096 / imp.getWidth()
     for n in range(1, imp.getStackSize() + 1):
         # Threshhold modifiziert alle Bilder des Stacks,
@@ -45,8 +46,9 @@ def process_at(imp, pos):
         x_pos.append(bin * dup.getStatistics(measures).xCentroid)
         # Nur Pixel, die nicht NaN sind werden gezählt:
         width.append(bin * dup.getStatistics(measures).pixelCount / sec)
+        intensity.append(dup.getStatistics(measures).pixelCount * dup.getStatistics(measures).mean)
         dup.close()
-    return x_pos, width
+    return x_pos, width, intensity 
 
 
 if __name__ == '__main__':
@@ -63,6 +65,15 @@ if __name__ == '__main__':
     # Von Interesse sind nur die Pixel-Positionen:
     IJ.run(imp_eels, 'Properties...', 'unit=[] pixel_width=1 pixel_height=1 voxel_depth=1')
 
+    # Mit Hilfe eines Gauss-Filters wird Rauschen reduziert.
+    IJ.run(imp_pos, "Gaussian Blur...", "sigma=2 stack")
+    IJ.run(imp_eels, "Gaussian Blur...", "sigma=2 stack")
+
+	# Das Spektrum mit der Nr. 12 enthält einen Hellen Spot, der die Auswertung stört.
+    imp_eels.setSlice(12)
+    IJ.run(imp_eels, "Remove Outliers...", "radius=5 threshold=150 which=Bright")
+    imp_eels.setSlice(1)
+
     # Bei den Aufnahmen der Blenden reicht der Threshold vom ersten Bild.
     IJ.setAutoThreshold(imp_pos, 'Li dark')
     IJ.run(imp_pos, 'NaN Background', 'stack')
@@ -78,14 +89,15 @@ if __name__ == '__main__':
         y_pos.append(bin * imp_pos.getStatistics(measures).yCentroid)
 
     # Dies sind die Positionen auf der Energieachse in %:
-    pos_list = [0, 25, 50, 75, 100]
+    pos_list = [10, 20, 30, 40, 50, 60, 70, 80, 90]
     # Die Ergebnisse der Auswertung der SR-EEL Spektren landen in einem Dictionary:
     eels_res = {}
     for pos in pos_list:
-        eels_x_pos, eels_width = process_at(imp_eels, pos / 100)
+        eels_x_pos, eels_width, eels_int = process_at(imp_eels, pos / 100)
         # Die Keys werden automatisch generiert:
         eels_res['pos' + str(pos)] = eels_x_pos
         eels_res['width' + str(pos)] = eels_width
+        eels_res['int' + str(pos)] = eels_int
 
     # Zuletzt werden alle ergebnisse in eine Tabelle geschrieben:
     from ij.measure import ResultsTable
