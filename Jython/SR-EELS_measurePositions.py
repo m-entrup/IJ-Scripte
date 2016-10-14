@@ -34,6 +34,7 @@ def process_at(imp, pos):
     x_pos = []
     width = []
     intensity = []
+    mean = []
     bin = 4096 / imp.getWidth()
     for n in range(1, imp.getStackSize() + 1):
         # Threshhold modifiziert alle Bilder des Stacks,
@@ -47,8 +48,9 @@ def process_at(imp, pos):
         # Nur Pixel, die nicht NaN sind werden gezählt:
         width.append(bin * dup.getStatistics(measures).pixelCount / sec)
         intensity.append(dup.getStatistics(measures).pixelCount * dup.getStatistics(measures).mean)
+        mean.append(dup.getStatistics(measures).mean)
         dup.close()
-    return x_pos, width, intensity 
+    return x_pos, width, intensity , mean
 
 
 if __name__ == '__main__':
@@ -93,11 +95,12 @@ if __name__ == '__main__':
     # Die Ergebnisse der Auswertung der SR-EEL Spektren landen in einem Dictionary:
     eels_res = {}
     for pos in pos_list:
-        eels_x_pos, eels_width, eels_int = process_at(imp_eels, pos / 100)
+        eels_x_pos, eels_width, eels_int, eels_mean = process_at(imp_eels, pos / 100)
         # Die Keys werden automatisch generiert:
         eels_res['pos' + str(pos)] = eels_x_pos
         eels_res['width' + str(pos)] = eels_width
         eels_res['int' + str(pos)] = eels_int
+        eels_res['mean' + str(pos)] = eels_mean
 
     # Zuletzt werden alle ergebnisse in eine Tabelle geschrieben:
     from ij.measure import ResultsTable
