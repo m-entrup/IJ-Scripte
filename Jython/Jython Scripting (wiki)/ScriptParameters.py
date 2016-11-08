@@ -51,9 +51,11 @@ def run_script():
 	def subtract(values):
 		return values[0] - values[1]
 	"""
-	difference = img_calc(subtract, crystal, filtered, title="Difference")
+	# The first time we call img_calc with 2 images.
+	difference = img_calc(subtract, crystal, filtered, title="Difference of 2")
 	difference.show()
-	minimum = img_calc(min, crystal, filtered, title="Minimum")
+	# The second time we call img_calc with 3 images.
+	minimum = img_calc(min, crystal, filtered, crystal_with_noise, title="Minimum of 3")
 	minimum.show()
 	for imp in (crystal, crystal_with_noise, filtered, difference, minimum):
 		IJ.run(imp, "Measure", "")
