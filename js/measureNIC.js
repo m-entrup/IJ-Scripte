@@ -68,7 +68,8 @@ function export2JSON(array) {
 function fitGauss(obj) {
 	with (Imports) {
 		var fit = new CurveFitter(obj.valsX, obj.valsY);
-		fit.doCustomFit("y = a*exp(-(x-b)*(x-b)*(x-b)*(x-b)/(4*c*c*c*c))", null, false);
+		// 4*(1.1*c)^4 = 5.8564*c^4 -> b+/-s contains 68.3% off all values.
+		fit.doCustomFit("y = a*exp(-(x-b)*(x-b)*(x-b)*(x-b)/(5.8564*c*c*c*c))", null, false);
 		obj.offset = fit.getParams()[1];
 	}
 }
