@@ -71,10 +71,11 @@ function fitGauss(obj) {
 		// 4*(1.1*c)^4 = 5.8564*c^4 -> b+/-s contains 68.3% off all values.
 		fit.doCustomFit("y = a*exp(-(x-b)*(x-b)*(x-b)*(x-b)/(5.8564*c*c*c*c))", null, false);
 		obj.offset = fit.getParams()[1];
+		obj.width = fit.getParams()[2];
 	}
 }
 
-function createResultingImp(array) {
+function createNicImp(array) {
 	with (new JavaImporter(Packages.ij.process.FloatProcessor, Packages.ij.ImagePlus)) {
 		var fp, imp;
 		fp = new FloatProcessor(array.width, array.height);
@@ -82,6 +83,18 @@ function createResultingImp(array) {
 			fp.setf(obj.x, obj.y, obj.offset);
 		});
 		imp = new ImagePlus("NIC", fp);
+		return imp;
+	}
+}
+
+function createWidthImp(array) {
+	with (new JavaImporter(Packages.ij.process.FloatProcessor, Packages.ij.ImagePlus)) {
+		var fp, imp;
+		fp = new FloatProcessor(array.width, array.height);
+		array.forEach(function(obj) {
+			fp.setf(obj.x, obj.y, obj.width);
+		});
+		imp = new ImagePlus("width", fp);
 		return imp;
 	}
 }
@@ -139,7 +152,8 @@ function main() {
 		IJ.showStatus("Calculating the NIC...");
 		IJ.showProgress(0);
 		multithreader(fitGauss, zProfiles);
-		createResultingImp(zProfiles).show();
+		createNicImp(zProfiles).show();
+		createWidthImp(zProfiles).show();
 	}
 }
 
