@@ -1,9 +1,10 @@
-# @File(label='Select a aperture file') first_file_pos
-# @String(label='File filter position',value='(^Pos)') filter_pos
-# @File(label='Select a SR-EELS file') first_file_eels
-# @String(label='File filter SR-EELS',value='(^EELS)') filter_eels
-
 """
+@File(label='Select a aperture file') first_file_pos
+@String(label='File filter position',value='(^Pos)') filter_pos
+@File(label='Select a SR-EELS file') first_file_eels
+@String(label='File filter SR-EELS',value='(^EELS)') filter_eels
+@Boolean(label='Rotate SR-EELS', value=False) do_rotate
+
 Dieses Script wertet die Position der Rundblende in der Filtereintrittsebene,
 sowie Position und Breite der resultierende SR-EEL Spektrn aus.
 """
@@ -64,6 +65,8 @@ if __name__ == '__main__':
            'open=[%s] file=[%s] sort' % (first_file_eels, filter_eels)
           )
     imp_eels = IJ.getImage()
+    if do_rotate:
+    	IJ.run(imp_eels, "Rotate 90 Degrees Right", "")
     # Von Interesse sind nur die Pixel-Positionen:
     IJ.run(imp_eels, 'Properties...', 'unit=[] pixel_width=1 pixel_height=1 voxel_depth=1')
 
