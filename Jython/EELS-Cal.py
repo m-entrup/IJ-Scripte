@@ -1,6 +1,6 @@
 """
 @File(label='Input directory', style='directory') srcDir
-@boolean(label='Use fast mode', description='Use this for ZLP spectra') fast_mode
+@boolean(label='Use fast mode', description='calc in fourier space') fast_mode
 @boolean(label='Debug mode') DEBUG
 """
 
@@ -21,7 +21,10 @@ class Spectrum:
     def get_spectrum_csv(cls, csv_file):
         spectrum = []
         with open(csv_file, 'rb') as csvfile:
-            reader = csv.reader(csvfile, delimiter=',')
+            delim=','
+            if csv_file.endswith('.xls'):
+                delim='\t'
+            reader = csv.reader(csvfile, delimiter=delim)
             for row in reader:
                 try:
                     spectrum.append({
@@ -52,7 +55,7 @@ class Spectrum:
 
     @classmethod
     def from_file(cls, file_path):
-        if file_path.endswith('.csv'):
+        if file_path.endswith('.csv') or file_path.endswith('.xls'):
             spectrum = Spectrum.get_spectrum_csv(file_path)
         if file_path.endswith('.msa'):
             spectrum = Spectrum.get_spectrum_msa(file_path)
@@ -79,11 +82,21 @@ class Spectrum:
 
     def crosscorrelation(self, spectrum):
         if fast_mode:
+            '''old version
             from org.apache.commons.math3.util import MathArrays
             reverse = spectrum.ys[::-1]
             corr = MathArrays.convolve(self.ys, reverse)
-            new_spec = [{ 'x': x, 'y': y } for x, y in zip(self.xs, corr)]
-            return Spectrum(new_spec, self.loss - spectrum.loss)
+            '''
+            from org.apache.commons.math3.transform import FastFourierTransformer
+            from org.apache.commons.math3.transform import DftNormalization as norm
+            from org.apache.commons.math3.transform import TransformType as trans_type
+            transformer = FastFourierTransformer(norm.STANDARD)
+            fft1 = transformer.transform(self.ys, trans_type.FORWARD)
+            fft2 = transformer.transform(spectrum.ys, trans_type.FORWARD)
+            fft2c = [val.conjugate() for val in fft2]
+            corr_fft = [val1.multiply(val2) for val1, val2 in zip(fft1, fft2c)]
+            corr_c = transformer.transform(corr_fft, trans_type.INVERSE)
+            corr = [val.getReal() for val in corr_c]
         else:
             from collections import deque
             from org.apache.commons.math3.stat.correlation import PearsonsCorrelation
@@ -93,14 +106,14 @@ class Spectrum:
             for i in range(len(self.ys)):
                 corr.append(correlator.correlation(self.ys, list(shifted)))
                 shifted.rotate(1)
-            new_spec = [{ 'x': x, 'y': y } for x, y in zip(self.xs, corr)]
-            return Spectrum(new_spec, self.loss - spectrum.loss)
+        new_spec = [{ 'x': x, 'y': y } for x, y in zip(self.xs, corr)]
+        return Spectrum(new_spec, self.loss - spectrum.loss)
 
-def pos_of_max(values):
-    m = max(values)
+def pos_of(values, method):
+    m = method(values)
     pos = [i for i, j in enumerate(values) if j == m]
     if len(pos) > 1:
-        print('Warning: The maximum of the list is not distinct.')
+        print('Warning: The %s of the list is not distinct.' (method,))
     return pos[0]
 
 def get_shift(spectra):
@@ -110,7 +123,7 @@ def get_shift(spectra):
         for corr in correlations:
             corr.plot()
     xs = [item.loss for item in correlations]
-    ys = [pos_of_max(item.ys) for item in correlations]
+    ys = [pos_of(item.ys, max) for item in correlations]
     xs.append(0)
     ys.append(len(ref.xs) - 1)
     return xs, ys
@@ -131,8 +144,10 @@ def error_of_dispersion(fit, xs):
 def run_script():
     files = []
     for item in os.listdir(srcDir.getAbsolutePath()):
-        if str(item).endswith('.csv') or str(item).endswith('.msa'):
+        if str(item).endswith('.csv') or str(item).endswith('.xls') or str(item).endswith('.msa'):
             files.append(os.path.join(srcDir.getAbsolutePath(), str(item)))
+    if len(files) <= 1:
+        return
     spectra = [Spectrum.from_file(csv_file) for csv_file in files]
     spectra = sorted(spectra, key=lambda item: item.loss)
     #spectra[10].crosscorrelation(spectra[0]).plot()
