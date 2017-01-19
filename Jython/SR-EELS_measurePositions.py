@@ -45,7 +45,7 @@ def process_at(imp, pos):
         IJ.setAutoThreshold(dup, 'Li dark')
         IJ.run(dup, 'NaN Background', 'stack')
         measures = stats.CENTROID + stats.INTEGRATED_DENSITY
-        x_pos.append(bin * dup.getStatistics(measures).xCentroid)
+        x_pos.append(bin * (dup.getStatistics(measures).xCentroid))
         # Nur Pixel, die nicht NaN sind werden gezählt:
         width.append(bin * dup.getStatistics(measures).pixelCount / sec)
         intensity.append(dup.getStatistics(measures).pixelCount * dup.getStatistics(measures).mean)
@@ -66,7 +66,8 @@ if __name__ == '__main__':
           )
     imp_eels = IJ.getImage()
     if do_rotate:
-    	IJ.run(imp_eels, "Rotate 90 Degrees Right", "")
+    	IJ.run(imp_eels, "Rotate 90 Degrees Right", "stack")
+    IJ.run(imp_eels, "Flip Horizontally", "stack")
     # Von Interesse sind nur die Pixel-Positionen:
     IJ.run(imp_eels, 'Properties...', 'unit=[] pixel_width=1 pixel_height=1 voxel_depth=1')
 
