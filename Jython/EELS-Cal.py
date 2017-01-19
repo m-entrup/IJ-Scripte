@@ -1,5 +1,7 @@
 """
 @File(label='Input directory', style='directory') srcDir
+@boolean(label='Use fast mode', description='Use this for ZLP spectra') fast_mode
+@boolean(label='Debug mode') DEBUG
 """
 
 from __future__ import with_statement, division
@@ -11,7 +13,6 @@ from exceptions import ValueError
 from ij import IJ
 from ij.gui import Plot
 
-DEBUG = True
 errors = []
 
 class Spectrum:
@@ -77,23 +78,23 @@ class Spectrum:
         plot.show()
 
     def crosscorrelation(self, spectrum):
-        from org.apache.commons.math3.util import MathArrays
-        reverse = spectrum.ys[::-1]
-        corr = MathArrays.convolve(self.ys, reverse)
-        new_spec = [{ 'x': x, 'y': y } for x, y in zip(self.xs, corr)]
-        return Spectrum(new_spec, self.loss - spectrum.loss)
-
-    def crosscorrelation2(self, spectrum):
-        from collections import deque
-        from org.apache.commons.math3.stat.correlation import PearsonsCorrelation
-        correlator = PearsonsCorrelation()
-        corr = []
-        shifted = deque(spectrum.ys)
-        for i in range(len(self.ys)):
-            corr.append(correlator.correlation(self.ys, list(shifted)))
-            shifted.rotate(1)
-        new_spec = [{ 'x': x, 'y': y } for x, y in zip(self.xs, corr)]
-        return Spectrum(new_spec, self.loss - spectrum.loss)
+        if fast_mode:
+            from org.apache.commons.math3.util import MathArrays
+            reverse = spectrum.ys[::-1]
+            corr = MathArrays.convolve(self.ys, reverse)
+            new_spec = [{ 'x': x, 'y': y } for x, y in zip(self.xs, corr)]
+            return Spectrum(new_spec, self.loss - spectrum.loss)
+        else:
+            from collections import deque
+            from org.apache.commons.math3.stat.correlation import PearsonsCorrelation
+            correlator = PearsonsCorrelation()
+            corr = []
+            shifted = deque(spectrum.ys)
+            for i in range(len(self.ys)):
+                corr.append(correlator.correlation(self.ys, list(shifted)))
+                shifted.rotate(1)
+            new_spec = [{ 'x': x, 'y': y } for x, y in zip(self.xs, corr)]
+            return Spectrum(new_spec, self.loss - spectrum.loss)
 
 def pos_of_max(values):
     m = max(values)
@@ -104,7 +105,7 @@ def pos_of_max(values):
 
 def get_shift(spectra):
     ref = spectra[0]
-    correlations = [spec.crosscorrelation2(ref) for spec in spectra[1:]]
+    correlations = [spec.crosscorrelation(ref) for spec in spectra[1:]]
     if DEBUG:
         for corr in correlations:
             corr.plot()
@@ -119,6 +120,13 @@ def get_lin_fit(xs, ys):
     fitter = CurveFitter(xs, ys)
     fitter.doFit(CurveFitter.STRAIGHT_LINE)
     return fitter
+
+def error_of_dispersion(fit, xs):
+    r2 = [val**2 for val in fit.getResiduals()]
+    s_y = sum(r2) / (len(r2) - 2)
+    x2s = [val**2 for val in xs]
+    dm = s_y**2 * len(r2) / (len(r2) * sum(x2s) - sum(xs)**2)
+    return dm / fit.getParams()[1]**2
 
 def run_script():
     files = []
@@ -139,7 +147,7 @@ def run_script():
     y_fit = [fit.f(x) for x in x_fit]
     plot.addPoints(x_fit, y_fit, Plot.LINE)
     plot.addLegend('Measured shift\ng(x) = %f x + %f' % (fit.getParams()[1], fit.getParams()[0]))
-    plot.addLabel(0.75, 0.5, 'dispersion = %f' % (-1/fit.getParams()[1],))
+    plot.addLabel(0.6, 0.4, 'dispersion = %feV/px\n uncertainty: %feV/px' % (-1/fit.getParams()[1],error_of_dispersion(fit, xs)))
     plot.show()
     for error in errors:
         IJ.log(error)
