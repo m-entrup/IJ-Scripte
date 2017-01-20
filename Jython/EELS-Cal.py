@@ -2,6 +2,11 @@
 @File(label='Input directory', style='directory') srcDir
 @boolean(label='Use fast mode', description='calc in fourier space') fast_mode
 @boolean(label='Debug mode') DEBUG
+
+file:       EELS-Cal.py
+author:     Michael Entrup b. Epping (michael.entrup@wwu.de)
+version:    20170120
+info:       A script to get the energy dispersion from a series of spectra.
 """
 
 from __future__ import with_statement, division
@@ -12,31 +17,43 @@ from exceptions import ValueError
 
 from ij import IJ
 from ij.gui import Plot
+from ij.gui import ProfilePlot
 
-errors = []
+errors = [] # Save errors to this list and desplay them at the end of the script.
 
 class Spectrum:
 
     @classmethod
     def get_spectrum_csv(cls, csv_file):
+        """ Load from csv files created with ImageJ.
+        These files use commas as delimiter.
+        Comments are ignored by catching ValueErrors.
+        """
         spectrum = []
         with open(csv_file, 'rb') as csvfile:
             delim=','
             if csv_file.endswith('.xls'):
                 delim='\t'
             reader = csv.reader(csvfile, delimiter=delim)
+            index = 0
             for row in reader:
                 try:
                     spectrum.append({
-                                     'x': float(row[0]),
+                                     'x': index,
+                                     'dE': float(row[0]),
                                      'y': float(row[1])
                                     })
+                    index += 1
                 except ValueError:
                     errors.append('%s: Skipping this row: %s' % (os.path.basename(csv_file),row))
         return spectrum
 
     @classmethod
     def get_spectrum_msa(cls, msa_file):
+        """ Load from msa files created with Gatan DM.
+        These files use commas as delimiter.
+        Comments are ignored by catching ValueErrors.
+        """
         spectrum = []
         with open(msa_file, 'rb') as csvfile:
             reader = csv.reader(csvfile, delimiter=',')
@@ -54,15 +71,45 @@ class Spectrum:
         return spectrum
 
     @classmethod
+    def get_spectrum_dm3(cls, dm3_file):
+        """ Load from dm3 files created with Gatan DM.
+        These files are images that are converted to line profiles.
+        """
+        spectrum = []
+        imp = IJ.openImage(dm3_file)
+        IJ.run(imp, "Select All", "")
+        profiler = ProfilePlot(imp)
+        plot = profiler.getPlot()
+        ys = plot.getYValues()
+        spectrum = []
+        index = 0
+        for y in ys:
+            spectrum.append({
+                             'x': index,
+                             'y': y
+                            })
+            index += 1
+        return spectrum
+
+    @classmethod
     def from_file(cls, file_path):
-        if file_path.endswith('.csv') or file_path.endswith('.xls'):
+        """ Load a spectrum from file and return it as an instance of Spectrum.
+        """
+        if file_path.endswith('.dm3'):
+            spectrum = Spectrum.get_spectrum_dm3(file_path)
+        elif file_path.endswith('.csv') or file_path.endswith('.xls'):
             spectrum = Spectrum.get_spectrum_csv(file_path)
-        if file_path.endswith('.msa'):
+        elif file_path.endswith('.msa'):
             spectrum = Spectrum.get_spectrum_msa(file_path)
+        else:
+            return
+        ''' Find an energy loss with optional decimal places.
+        The rest of the file name is ignored.
+        '''
         import re
-        pattern = '.*\D(\d+)eV.*'
+        pattern = '.*[^\d\.]((?:\d+[\.,])?\\d+)eV.*'
         m = re.match(pattern, file_path)
-        loss = int(m.group(1))
+        loss = float(m.group(1))
         return cls(spectrum, loss)
 
     def __init__(self, spectrum, loss):
@@ -81,6 +128,12 @@ class Spectrum:
         plot.show()
 
     def crosscorrelation(self, spectrum):
+        """ Calculate the crosscorrelation of the instance with a given Spectrum.
+        The result is again an instance of Spectrum.
+        There are to modes to use:
+        1. 'fast_mode' runs in fourier space.
+        2. The second mode runs without fouriertransform.
+        """
         if fast_mode:
             '''old version
             from org.apache.commons.math3.util import MathArrays
@@ -110,6 +163,8 @@ class Spectrum:
         return Spectrum(new_spec, self.loss - spectrum.loss)
 
 def pos_of(values, method):
+    """Find the position of a value that is calculated by the given method.
+    """
     m = method(values)
     pos = [i for i, j in enumerate(values) if j == m]
     if len(pos) > 1:
@@ -117,24 +172,34 @@ def pos_of(values, method):
     return pos[0]
 
 def get_shift(spectra):
-    ref = spectra[0]
-    correlations = [spec.crosscorrelation(ref) for spec in spectra[1:]]
+    """ Use crosscorrelation do determine the shoft between two spectra.
+    The results are two arrays that contain the shift in eV (from title) and in px (from crosscorrelation).
+    """
+    ref_pos = int(round(len(spectra) / 2))
+    ref = spectra[ref_pos]
+    if DEBUG:
+        IJ.log('Energy loss of the reference spectrum is %deV' % ref.loss)
+    correlations = [ref.crosscorrelation(spec) for spec in spectra]
     if DEBUG:
         for corr in correlations:
             corr.plot()
     xs = [item.loss for item in correlations]
-    ys = [pos_of(item.ys, max) for item in correlations]
-    xs.append(0)
-    ys.append(len(ref.xs) - 1)
+    ys = [pos_of(item.ys, max) if item.loss <= 0 else -(len(item.ys) - pos_of(item.ys, max)) for item in correlations]
+    xs = xs
+    ys = ys
     return xs, ys
 
 def get_lin_fit(xs, ys):
+    """Calculate a linear fit for the given values and return it.
+    """
     from ij.measure import CurveFitter
     fitter = CurveFitter(xs, ys)
     fitter.doFit(CurveFitter.STRAIGHT_LINE)
     return fitter
 
 def error_of_dispersion(fit, xs):
+    """ Calculate the statistical error of the dispersion.
+    """
     r2 = [val**2 for val in fit.getResiduals()]
     s_y = sum(r2) / (len(r2) - 2)
     x2s = [val**2 for val in xs]
@@ -144,14 +209,18 @@ def error_of_dispersion(fit, xs):
 def run_script():
     files = []
     for item in os.listdir(srcDir.getAbsolutePath()):
-        if str(item).endswith('.csv') or str(item).endswith('.xls') or str(item).endswith('.msa'):
-            files.append(os.path.join(srcDir.getAbsolutePath(), str(item)))
+        files.append(os.path.join(srcDir.getAbsolutePath(), str(item)))
     if len(files) <= 1:
         return
-    spectra = [Spectrum.from_file(csv_file) for csv_file in files]
+    spectra = [Spectrum.from_file(file_path) for file_path in files]
+    spectra = [spec for spec in spectra if spec is not None]
+    if len(spectra) <= 1:
+        return
     spectra = sorted(spectra, key=lambda item: item.loss)
-    #spectra[10].crosscorrelation(spectra[0]).plot()
-    plot =  Plot('EELS-Cal',
+    if DEBUG:
+        for spec in spectra:
+            spec.plot()
+    plot =  Plot('EELS-Cal of %s' % os.path.basename(srcDir.getAbsolutePath()),
                  'Energy loss difference [eV]',
                  'Shift [px]'
                 )
@@ -161,11 +230,15 @@ def run_script():
     x_fit = range(min(xs), max(xs) + 1)
     y_fit = [fit.f(x) for x in x_fit]
     plot.addPoints(x_fit, y_fit, Plot.LINE)
-    plot.addLegend('Measured shift\ng(x) = %f x + %f' % (fit.getParams()[1], fit.getParams()[0]))
-    plot.addLabel(0.6, 0.4, 'dispersion = %feV/px\n uncertainty: %feV/px' % (-1/fit.getParams()[1],error_of_dispersion(fit, xs)))
+    plot.addPoints([0], [0], Plot.LINE) # This is necessary to get a new row at the legend
+    plot.addLegend('Measured shift\ng(x) = %f x + %f\nr^2 = %f' % (fit.getParams()[1], fit.getParams()[0], fit.getRSquared()))
+    plot.addLabel(0.6, 0.4, 'dispersion = %feV/px\n uncertainty: %feV/px\nGatan dispersion: %f' % (-1/fit.getParams()[1],error_of_dispersion(fit, xs), -15 * fit.getParams()[1]))
     plot.show()
-    for error in errors:
-        IJ.log(error)
+    if DEBUG:
+        if len(errors) >= 1:
+            IJ.log('Errors durring script execution:')
+            for error in errors:
+                IJ.log(error)
 
 if __name__ == '__main__':
     run_script()
