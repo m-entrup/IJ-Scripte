@@ -14,7 +14,7 @@ from EFTEMj_pyLib import CorrectDrift as drift
 
 def get_energy_loss(imp):
     import re
-    pattern = '[\w\_\d]*?(-?\d+(?:[,.]\d+)?)eV[\w\_\d]*'
+    pattern = '[\s\w\_\d]*?(-?\d+(?:[,.]\d+)?)eV[\s\w\_\d]*'
     m = re.match(pattern, imp.getTitle())
     return float(m.group(1))
 
@@ -37,6 +37,7 @@ class NIC:
         self.images = sorted(list_imps, key=get_energy_loss)
         self.NIC = Tools.batch_open_images(srcFile.getAbsolutePath(),
                                            file_type='.tif',
+                                           name_filter='NIC',
                                            recursive=True
                                           )
         assert len(self.NIC) == 1
@@ -49,7 +50,7 @@ class NIC:
             line = [image.getProcessor().getf(x,y) for image in images]
         if shift and len(images) == 1:
             '''Für einzelnes NIC-Bild.
-            Linie wird aus NIC-Bild und Verschiebungen generiert. 
+            Linie wird aus NIC-Bild und Verschiebungen generiert.
             '''
             def get_pixel(x, y):
                 ip = images[0].getProcessor()
@@ -158,7 +159,6 @@ def main():
     print(nic.NIC)
     for imp in nic.images:
         print(imp)
-    '''
     nic.drift_vec = drift.get_drift_vector_sift(nic.images)
     for vec in nic.drift_vec:
         print(vec)
@@ -170,6 +170,7 @@ def main():
                      (-1.9227944604469371, 1.9856290737739073),
                      (-2.327765760778391, 2.278571323972983)
                     ]
+    '''
     list_corrected = nic.Drift_and_NIC_correction(nic.images, nic.drift_vec, nic.NIC)
     for imp in list_corrected:
         imp.show()
