@@ -2,8 +2,14 @@ from __future__ import division
 
 import math
 import re
+import time
 
+from java.lang import Runnable
+from java.lang import Runtime
 from java.lang import RuntimeException
+from java.lang import Thread
+from java.lang.reflect import Array
+from java.util.concurrent.atomic import AtomicInteger
 
 from ij import IJ
 from ij import ImagePlus
@@ -46,13 +52,13 @@ def stack_to_array(imp):
     offset = IJ.getNumber("Enter energy loss offset: ", offset)
     if (offset == IJ.CANCELED) :
         return IJ.CANCELED
-    
+
     IJ.showStatus("Preparing the data...")
     for z in range(imp.getStackSize()):
         label = stack.getShortSliceLabel(z+1)
         match = pattern.search(label)
         elosses.append(float(match.group(1)) - offset)
-        
+
     '''
     Create an object for each pixel of the stacks projection:
     Each object represents an EEL spectrum of the ZLP.
@@ -102,6 +108,23 @@ def create_fitter():
 def fit_gauss(fitter, obj):
     obj.amplitude, obj.offset, obj.width = fitter.fit(obj.points.toList())
 
+def multithread_func(func, array):
+    threads = Array.newInstance(Thread, Runtime.getRuntime().availableProcessors())
+    print('Processing %d profiles with %d threads.' % (len(array), len(threads)))
+    ai = AtomicInteger(0)
+    progress = AtomicInteger(1)
+    class Body(Runnable):
+        def run(self):
+            for i in (ai.getAndIncrement() for _ in  range(len(array))):
+                if i < len(array):
+                    func(array.fitter, array[i])
+                    IJ.showProgress(progress.getAndIncrement(), len(array))
+    for i in range(len(threads)):
+        threads[i] = Thread(Body())
+        threads[i].start()
+    for thread in threads:
+        thread.join()
+
 def main():
     try:
         inputImp = IJ.getImage()
@@ -125,9 +148,14 @@ def main():
         return
     IJ.showStatus("Calculating the NIC...")
     IJ.showProgress(0)
-    fitter = create_fitter()
+    start_time = time.time()
+    zProfiles.fitter = create_fitter()
+    '''
     for profile in zProfiles:
-        fit_gauss(fitter, profile)
+        fit_gauss(zProfiles.fitter, profile)
+    '''
+    multithread_func(fit_gauss, zProfiles)
+    print('Fitting took %.3fs to finish.' % (time.time() - start_time,))
     create_nic(zProfiles).show()
     create_width(zProfiles).show()
 
