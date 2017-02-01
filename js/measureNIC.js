@@ -1,10 +1,8 @@
-var Imports = new JavaImporter(
-	Packages.ij.IJ,
-	Packages.ij.ImagePlus,
-	Packages.ij.ImageStack,
-	Packages.ij.plugin.Duplicator,
-	Packages.ij.measure.CurveFitter);
-
+importClass(Packages.ij.IJ);
+importClass(Packages.ij.ImagePlus);
+importClass(Packages.ij.ImageStack);
+importClass(Packages.ij.plugin.Duplicator);
+importClass(Packages.ij.measure.CurveFitter);
 
 function PixelObject(x, y, valsX, valsY) {
 	this.x = x;
@@ -14,41 +12,39 @@ function PixelObject(x, y, valsX, valsY) {
 }
 
 function stackToArray(imp) {
-	with (new JavaImporter(Packages.ij.IJ, Packages.ij.ImagePlus)) {
-		var x, y, z, array, elosses, stack, label, pattern, offset, valsY;
-		array = [];
-		elosses = [];
-		stack = imp.getImageStack();
-		pattern = /(\d+(\.\d+)?)eV/i;
-		// We guess that the stack is sorted by energy loss and that the ZLP is at the centre of the stack.
-		offset = parseFloat(pattern.exec(stack.getShortSliceLabel(Math.floor(imp.getStackSize() / 2) + 1)));
-		offset = IJ.getNumber("Enter energy loss offset: ", offset);
-		if (offset == IJ.CANCELED) {
-			return IJ.CANCELED;
-		}
-		IJ.showStatus("Preparing the data...");
-		for (z = 0; z < imp.getStackSize(); z++) {
-			label = stack.getShortSliceLabel(z+1);
-			elosses.push(parseFloat(pattern.exec(label)) - offset);
-		}
-		/*
-		 * Create an object for each pixel of the stacks projection:
-		 * Each object represents an EEL spectrum of the ZLP.
-		 */
-		for (y = 0; y < imp.getHeight(); y++) {
-			for (x = 0; x < imp.getWidth(); x++) {
-				valsY = [];
-				for (z = 0; z < imp.getStackSize(); z++) {
-					valsY.push(stack.getVoxel(x, y, z));
-				}
-				array.push(new PixelObject(x, y, elosses, valsY));
-			}
-			IJ.showProgress(y+1, imp.getHeight());
-		}
-		array.width = imp.getWidth();
-		array.height = imp.getHeight();
-		return array;
+	var x, y, z, array, elosses, stack, label, pattern, offset, valsY;
+	array = [];
+	elosses = [];
+	stack = imp.getImageStack();
+	pattern = /(\d+(\.\d+)?)eV/i;
+	// We guess that the stack is sorted by energy loss and that the ZLP is at the centre of the stack.
+	offset = parseFloat(pattern.exec(stack.getShortSliceLabel(Math.floor(imp.getStackSize() / 2) + 1)));
+	offset = IJ.getNumber("Enter energy loss offset: ", offset);
+	if (offset == IJ.CANCELED) {
+		return IJ.CANCELED;
 	}
+	IJ.showStatus("Preparing the data...");
+	for (z = 0; z < imp.getStackSize(); z++) {
+		label = stack.getShortSliceLabel(z+1);
+		elosses.push(parseFloat(pattern.exec(label)) - offset);
+	}
+	/*
+	 * Create an object for each pixel of the stacks projection:
+	 * Each object represents an EEL spectrum of the ZLP.
+	 */
+	for (y = 0; y < imp.getHeight(); y++) {
+		for (x = 0; x < imp.getWidth(); x++) {
+			valsY = [];
+			for (z = 0; z < imp.getStackSize(); z++) {
+				valsY.push(stack.getVoxel(x, y, z));
+			}
+			array.push(new PixelObject(x, y, elosses, valsY));
+		}
+		IJ.showProgress(y+1, imp.getHeight());
+	}
+	array.width = imp.getWidth();
+	array.height = imp.getHeight();
+	return array;
 }
 
 function export2JSON(array) {
@@ -74,7 +70,7 @@ function fitGauss(obj) {
 }
 
 function createNicImp(array) {
-	with (new JavaImporter(Packages.ij.process.FloatProcessor, Packages.ij.ImagePlus)) {
+	with (new JavaImporter(Packages.ij.process.FloatProcessor)) {
 		var fp, imp;
 		fp = new FloatProcessor(array.width, array.height);
 		array.forEach(function(obj) {
@@ -86,7 +82,7 @@ function createNicImp(array) {
 }
 
 function createWidthImp(array) {
-	with (new JavaImporter(Packages.ij.process.FloatProcessor, Packages.ij.ImagePlus)) {
+	with (new JavaImporter(Packages.ij.process.FloatProcessor)) {
 		var fp, imp;
 		fp = new FloatProcessor(array.width, array.height);
 		array.forEach(function(obj) {
@@ -98,7 +94,7 @@ function createWidthImp(array) {
 }
 
 function multithreader(fun, array) {
-	with (new JavaImporter(Packages.java.lang.Thread, Packages.ij.IJ)) {
+	with (new JavaImporter(Packages.java.lang.Thread)) {
 		var threads = java.lang.reflect.Array.newInstance(Thread.class, java.lang.Runtime.getRuntime().availableProcessors());
 		var ai = new java.util.concurrent.atomic.AtomicInteger(0);
 		var progress = new java.util.concurrent.atomic.AtomicInteger(1);
@@ -123,38 +119,43 @@ function multithreader(fun, array) {
 }
 
 function main() {
-	with (Imports) {
-		var inputImp, binnedImp, bin, zProfiles, zProfilesExport, textWindow;
+	var inputImp, binnedImp, bin, zProfiles, zProfilesExport, textWindow;
+	try {
 		inputImp = IJ.getImage();
-		if (inputImp.getStackSize() <= 1) {
+    	if (inputImp.getStackSize() <= 1) {
 			IJ.showMessage("Error", "There must be at least a stack open.");
 			return;
 		}
-		binnedImp = new Duplicator().run(inputImp);
-		bin = Math.round(inputImp.getWidth() / 128);
-		bin = IJ.getNumber("Set the binning factor:", bin);
-		if (bin == IJ.CANCELED) {
-			return;
-		}
-		IJ.showStatus("Preparing the data...");
-		IJ.showProgress(0);
-		IJ.run(binnedImp, "Bin...", "x=" + bin + " y=" + bin + " bin=Average");
-		zProfiles = stackToArray(binnedImp);
-		if (zProfiles == IJ.CANCELED) {
-			return;
-		}
-		if (inputImp.getStackSize() * inputImp.getWidth() * inputImp.getHeight() < Math.pow(2, 24) * bin) {
-			IJ.showStatus("Preparing the JSON export...");
-			export2JSON(zProfiles);
-		}
-		IJ.showStatus("Calculating the NIC...");
-		IJ.showProgress(0);
-		with (Imports) {
-			multithreader(fitGauss, zProfiles);
-		}
-		createNicImp(zProfiles).show();
-		createWidthImp(zProfiles).show();
 	}
+	catch(err) {
+		// Exit if IJ.getImage() was not able to return an image.
+	    return;
+	}
+	
+	binnedImp = new Duplicator().run(inputImp);
+	bin = Math.round(inputImp.getWidth() / 128);
+	bin = IJ.getNumber("Set the binning factor:", bin);
+	if (bin == IJ.CANCELED) {
+		return;
+	}
+	IJ.showStatus("Preparing the data...");
+	IJ.showProgress(0);
+	IJ.run(binnedImp, "Bin...", "x=" + bin + " y=" + bin + " bin=Average");
+	zProfiles = stackToArray(binnedImp);
+	if (zProfiles == IJ.CANCELED) {
+		return;
+	}
+	if (inputImp.getStackSize() * inputImp.getWidth() * inputImp.getHeight() < Math.pow(2, 24) * bin) {
+		IJ.showStatus("Preparing the JSON export...");
+		export2JSON(zProfiles);
+	}
+	IJ.showStatus("Calculating the NIC...");
+	IJ.showProgress(0);
+	d = new Date();
+	multithreader(fitGauss, zProfiles);
+	print("Fitting took " + (new Date() - d) / 1000 + "s to finish.");
+	createNicImp(zProfiles).show();
+	createWidthImp(zProfiles).show();
 }
 
 main();
