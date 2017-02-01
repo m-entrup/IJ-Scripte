@@ -66,13 +66,11 @@ function export2JSON(array) {
 }
 
 function fitGauss(obj) {
-	with (Imports) {
-		var fit = new CurveFitter(obj.valsX, obj.valsY);
-		// 4*(1.1*c)^4 = 5.8564*c^4 -> b+/-s contains 68.3% off all values.
-		fit.doCustomFit("y = a*exp(-(x-b)*(x-b)*(x-b)*(x-b)/(5.8564*c*c*c*c))", null, false);
-		obj.offset = fit.getParams()[1];
-		obj.width = fit.getParams()[2];
-	}
+	var fit = new CurveFitter(obj.valsX, obj.valsY);
+	// 4*(1.1*c)^4 = 5.8564*c^4 -> b+/-s contains 68.3% off all values.
+	fit.doCustomFit("y = a*exp(-(x-b)*(x-b)*(x-b)*(x-b)/(5.8564*c*c*c*c))", [1e4, 0, 1.4], false);
+	obj.offset = fit.getParams()[1];
+	obj.width = fit.getParams()[2];
 }
 
 function createNicImp(array) {
@@ -151,7 +149,9 @@ function main() {
 		}
 		IJ.showStatus("Calculating the NIC...");
 		IJ.showProgress(0);
-		multithreader(fitGauss, zProfiles);
+		with (Imports) {
+			multithreader(fitGauss, zProfiles);
+		}
 		createNicImp(zProfiles).show();
 		createWidthImp(zProfiles).show();
 	}
