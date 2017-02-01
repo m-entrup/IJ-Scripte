@@ -120,11 +120,18 @@ function multithreader(fun, array) {
 
 function main() {
 	var inputImp, binnedImp, bin, zProfiles, zProfilesExport, textWindow;
-	inputImp = IJ.getImage();
-	if (inputImp.getStackSize() <= 1) {
-		IJ.showMessage("Error", "There must be at least a stack open.");
-		return;
+	try {
+		inputImp = IJ.getImage();
+    	if (inputImp.getStackSize() <= 1) {
+			IJ.showMessage("Error", "There must be at least a stack open.");
+			return;
+		}
 	}
+	catch(err) {
+		// Exit if IJ.getImage() was not able to return an image.
+	    return;
+	}
+	
 	binnedImp = new Duplicator().run(inputImp);
 	bin = Math.round(inputImp.getWidth() / 128);
 	bin = IJ.getNumber("Set the binning factor:", bin);
