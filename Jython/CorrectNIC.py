@@ -12,13 +12,30 @@ from java.lang import ArrayIndexOutOfBoundsException
 from EFTEMj_pyLib import Tools
 from EFTEMj_pyLib import CorrectDrift as drift
 
+
 def get_energy_loss(imp):
     import re
-    pattern = '[\s\w\_\d]*?(-?\d+(?:[,.]\d+)?)eV[\s\w\_\d]*'
+    print(imp.getTitle())
+    pattern = '[\w\s\_\d]*?(-?\d+(?:[,.]\d+)?)eV[\w\s\_\d]*'
     m = re.match(pattern, imp.getTitle())
     return float(m.group(1))
 
+
+def crop_stack(stack,drift_vec):
+    extremal_drift_vectors = (min(drift_vec,key=lambda x: x[0])[0],min(drift_vec,key=lambda x: x[1])[1],max(drift_vec,key=lambda x: x[0])[0],max(drift_vec,key=lambda x: x[1])[1])
+    crop_position = []
+    crop_position.append(int(round(-extremal_drift_vectors[0] if extremal_drift_vectors[0] <= 0 else 0)))
+    crop_position.append(int(round(-extremal_drift_vectors[1] if extremal_drift_vectors[1] <= 0 else 0)))
+    crop_position.append(int(round(stack.getWidth()-(extremal_drift_vectors[2] if extremal_drift_vectors[2] >=0 else 0) - crop_position[0] )))
+    crop_position.append(int(round(stack.getHeight()-(extremal_drift_vectors[3] if extremal_drift_vectors[3] >=0 else 0) - crop_position[1] )))
+
+    stack.setRoi(*crop_position)
+    stack1 = stack.duplicate()
+    stack1.show()
+
+
 class NIC:
+
 
     def __init__(self):
         self.images = []
@@ -29,10 +46,10 @@ class NIC:
 
     def open_images(self, str_filter):
         list_imps = Tools.batch_open_images(srcFile.getAbsolutePath(),
-                                              file_type=self.file_types,
-                                              name_filter=str_filter,
-                                              recursive=False
-                                             )
+                                            file_type=self.file_types,
+                                            name_filter=str_filter,
+                                            recursive=False
+                                           )
 
         self.images = sorted(list_imps, key=get_energy_loss)
         self.NIC = Tools.batch_open_images(srcFile.getAbsolutePath(),
@@ -40,28 +57,34 @@ class NIC:
                                            name_filter='NIC',
                                            recursive=True
                                           )
+        print(len(self.NIC))
         assert len(self.NIC) == 1
 
 
     def getLine(self, images, x, y, shift = None):
-        if not shift and len(images) > 1:
+        def get_pixel(x, y, ip):
+            if x >= ip.getWidth():
+                return 0
+            try:
+                val = ip.getf(x, y)
+            except IndexError:
+                val = 0
+            except ArrayIndexOutOfBoundsException:
+                val = 0
+            return val
+        if shift and len(images) > 1:
             '''Für die zu korrigierenden Daten.
             '''
-            line = [image.getProcessor().getf(x,y) for image in images]
+            line = []
+            for index,image in enumerate(images):
+                dx,dy = shift[index]
+                line.append(get_pixel(int(round(x + dx)), int(round(y + dy)),image.getProcessor()))
         if shift and len(images) == 1:
             '''Für einzelnes NIC-Bild.
             Linie wird aus NIC-Bild und Verschiebungen generiert.
             '''
-            def get_pixel(x, y):
-                ip = images[0].getProcessor()
-                try:
-                    val = ip.getf(x, y)
-                except IndexError:
-                    val = 0
-                except ArrayIndexOutOfBoundsException:
-                    val = 0
-                return val
-            line = [get_pixel(int(round(x + dx)), int(round(y + dy))) for dx, dy in shift]
+
+            line = [get_pixel(int(round(x + dx)), int(round(y + dy)),images[0].getProcessor()) for dx, dy in shift]
         return line
 
 
@@ -70,49 +93,45 @@ class NIC:
             image.getProcessor().setf(x, y, value)
 
 
-    def NIC_and_Drift_corrected_line(self, line, NIC_line, energy_line):
+    def NIC_and_Drift_corrected_line(self, line, NIC_line):
         """This function takes one line of the image datacube
         and the accompanying line of the NIC-datacube
         and corrects the acromaticity in this line.
         """
-        # Energy-distance between the images
-        dE = 1
+        assert len(line)==len(NIC_line)
         # generates a list of 0 with lenght of the line
         new_line = [0 for x in range(len(line))]
+
+        #integral_energyshift = int(NIC_line[index] // dE)
+        #small_energyshift = NIC_line[index] % dE
+
+        corrected_line = [0 for x in range(len(line))]
+
         for index, _ in enumerate(line):
-            '''corrects the acromaticity for integral numbers of the NIC-line
-            or NIC-line-values bigger/(smaller) than 1/(-1)
-            '''
-            integral_energyshift = int(NIC_line[index] // dE)
-            if integral_energyshift > 0 and (index + integral_energyshift) in range(len(line)):
-                '''integral energyshift bigger one
-                '''
-                new_line[index] = line[index+integral_energyshift]
-            if integral_energyshift < 0 and (index + integral_energyshift) in range(len(line)):
-                '''integral energyshift smaller zero
-                '''
-                new_line[index] = line[index+integral_energyshift]
-            if integral_energyshift == 0:
-                '''no integral energy-shift
-                '''
-                new_line[index] = line[index]
-        corrected_line = [0 for x in range(len(new_line))]
-        for index,_ in enumerate(new_line):
-            '''generates the weight average between two values of the image-line,
-            when there are non-integral NIC-line-values
-            '''
-            # integral energyshift bigger/(smaller) than 1/(-1)
-            integral_energyshift = int(NIC_line[index] // dE)
-            # non-integral energyshift
-            small_energyshift = NIC_line[index] % dE
-            if small_energyshift > 0 and ((index + 1) in range(len(line))) and (new_line[index] and new_line[index+1] != 0):
-                corrected_line[index] = (1-small_energyshift) * new_line[index] + small_energyshift * new_line[index + 1]
-            elif small_energyshift == 0:
-                corrected_line[index] = new_line[index]
-            elif (small_energyshift > 0 and integral_energyshift < 0 and index == len(new_line) - 1):
-                corrected_line[index] = (1 - small_energyshift) * new_line[index] + small_energyshift * line[index+integral_energyshift + 1]
-            elif small_energyshift > 0 and ((index + 1) in range(len(line))) and new_line[index + 1] == 0:
-                corrected_line [index] = (1 - small_energyshift) * new_line[index] + small_energyshift * line[index+integral_energyshift + 1]
+            integral_energyshift = int(NIC_line[index] // self.dE)
+            small_energyshift = NIC_line[index] % self.dE
+
+            if small_energyshift == 0:
+                if integral_energyshift > 0 and (index + integral_energyshift) in range(len(line)):
+                    '''integral energyshift bigger one'''
+                    corrected_line[index] = line[index+integral_energyshift]
+                elif integral_energyshift < 0 and (index + integral_energyshift) in range(len(line)):
+                    '''integral energyshift smaller zero'''
+                    corrected_line[index] = line[index+integral_energyshift]
+                elif integral_energyshift == 0:
+                    '''no integral energy-shift'''
+                    corrected_line[index] = line[index]
+                else:
+                    corrected_line[index] = 0
+            else:
+                if integral_energyshift >= 0 and (index+1+integral_energyshift) in range (len(line)) and line[index+integral_energyshift] != 0 and line[index+1+integral_energyshift] != 0:
+                    ''''''
+                    corrected_line[index] = (1-small_energyshift) * line[index+integral_energyshift] + small_energyshift * line[index+1+integral_energyshift]
+                elif integral_energyshift < 0 and (index+integral_energyshift) in range(len(line)) and line[index+integral_energyshift] != 0 and line[index+1+integral_energyshift] != 0:
+                    ''''''
+                    corrected_line[index] = (1-small_energyshift) * line[index+integral_energyshift] + small_energyshift * line[index+1+integral_energyshift]
+                else:
+                    corrected_line[index] = 0
         return corrected_line
 
 
@@ -126,32 +145,39 @@ class NIC:
                                            image.getHeight(),
                                            1
                                           ) for image in images]
-        energy_line = [get_energy_loss(image) for image in images]
-        print('Energieverluste: %s' % (energy_line,))
+        self.energy_line = [get_energy_loss(image) for image in images]
+        # Energy-distance between the images
+        self.dE = self.energy_line[1] - self.energy_line[0]
+        print('Energieverluste: %s' % (self.energy_line,))
         IJ.showStatus('Creating acromatic-corrected datacube...')
         IJ.showProgress(0)
         for y in range(images[0].getHeight()):
             for x in range(images[0].getWidth()):
-                line = self.getLine(images, x ,y)
+                line = self.getLine(images, x ,y,shift=drift_vec)
                 NIC_line = self.getLine(NIC, x, y, shift=drift_vec)
-                corrected_line = self.NIC_and_Drift_corrected_line(line, NIC_line, energy_line)
+                corrected_line = self.NIC_and_Drift_corrected_line(line, NIC_line)
                 self.setLine(corrected_images, x, y, corrected_line)
             IJ.showProgress(y / images[0].getHeight())
         IJ.showProgress(1.0)
         return corrected_images
 
+
 def test1():
     nic = NIC()
     Test_line = [4168, 3820, 4241, 4755, 4885, 4789]
     NIC_Test = [-1.1, -0.5, -0.2, 0, 0.6, 1.1]
-    energy_test = [0, 1, 2, 3, 4, 5]
+    nic.energy_line = [0, 1, 2, 3, 4, 5]
+    nic.dE = nic.energy_line[1] - nic.energy_line[0]
     assert(len(Test_line) == len(NIC_Test))#
-    result = nic.NIC_and_Drift_corrected_line(Test_line, NIC_Test, energy_test)
+    result = nic.NIC_and_Drift_corrected_line(Test_line, NIC_Test)
     print(result)
-    if result != [0, 3994.0, 4568.0, 4755, 4827.4, 0]:
+    if result != [0, 3994.0, 4156.8, 4755, 4827.4, 0]:
         print("Upps, da passt was nicht")
+        return False
     else:
         print("Sehr gut, alles ist richtig. Gut gemacht!")
+        return True
+
 
 def main():
     nic = NIC()
@@ -159,6 +185,7 @@ def main():
     print(nic.NIC)
     for imp in nic.images:
         print(imp)
+    #'''
     nic.drift_vec = drift.get_drift_vector_sift(nic.images)
     for vec in nic.drift_vec:
         print(vec)
@@ -172,10 +199,36 @@ def main():
                     ]
     '''
     list_corrected = nic.Drift_and_NIC_correction(nic.images, nic.drift_vec, nic.NIC)
-    for imp in list_corrected:
-        imp.show()
-    IJ.run(None, "Images to Stack", "")
+
+    title = "NIC-Corrected stack"
+    title1 = "NIC-Corrected stack (Cropped)"
+    title0 = "Original Stack"
+    stack = ImagePlus(title, Tools.stack_from_list_of_imp(list_corrected))
+    mid = stack.getStackSize() // 2
+    stack.setSlice(mid)
+    IJ.run(stack, "Enhance Contrast", "saturated=0.35")
+    stack.copyScale(nic.images[0])
+    stack.getCalibration().pixelDepth = nic.dE
+    stack.getCalibration().zOrigin = -nic.energy_line[0] / nic.dE
+    stack.show()
+
+    #'''stack1 = ImagePlus(title1, Tools.stack_from_list_of_imp(list_corrected))
+    #stack1.setSlice(mid)
+    #IJ.run(stack1, "Enhance Contrast", "saturated=0.35")
+    #stack1.copyScale(nic.images[0])
+    #stack1.getCalibration().pixelDepth = nic.dE
+    #stack1.getCalibration().zOrigin = -nic.energy_line[0] / nic.dE
+    #stack1.show()'''
+
+    crop_stack(stack,nic.drift_vec)
+
+    stack0 = ImagePlus(title0, Tools.stack_from_list_of_imp(nic.images))
+    stack0.copyScale(nic.images[0])
+    stack0.getCalibration().pixelDepth = nic.dE
+    stack0.getCalibration().zOrigin = -nic.energy_line[0] / nic.dE
+    stack0.show()
+
 
 if __name__ == '__main__':
-     test1()
-     main()
+     if test1():
+         main()
